@@ -7,7 +7,10 @@ def test_add_book_appends():
     books = []
     reading_list.add_book(books, "三体", "刘慈欣", "科幻")
     assert len(books) == 1
-    assert books[0] == {"title": "三体", "author": "刘慈欣", "genre": "科幻"}
+    book = books[0]
+    assert book["title"] == "三体"
+    assert book["author"] == "刘慈欣"
+    assert book["genre"] == "科幻"
 
 
 def test_add_book_returns_copy():

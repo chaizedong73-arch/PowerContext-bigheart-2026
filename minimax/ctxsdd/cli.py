@@ -192,15 +192,18 @@ def cmd_run_task(args) -> int:
     ]
     code_hits = store.query("ctxsdd_code", task_desc, n=4)
     test_hits = store.query("ctxsdd_tests", task_desc, n=4)
+    # 检索命中的测试/代码只保留本任务相关文件：避免把未来规格的测试提前泄露给模型
+    direct = sorted(set(targets) | set(REGRESSION_TESTS) | {f"{BUSINESS_DIR}/reading_list.py"})
+    code_hits = [h for h in code_hits if h["metadata"].get("path") in direct]
+    test_hits = [h for h in test_hits if h["metadata"].get("path") in direct]
     _log_ob_query(env, "ctxsdd_specs", task_desc, spec_hits,
                   f"上下文打包（已过滤到最新版本 v{sorted(set(latest_by_source.values()))}）")
-    _log_ob_query(env, "ctxsdd_code", task_desc, code_hits, "上下文打包")
-    _log_ob_query(env, "ctxsdd_tests", task_desc, test_hits, "上下文打包")
+    _log_ob_query(env, "ctxsdd_code", task_desc, code_hits, "上下文打包（已过滤到任务相关文件）")
+    _log_ob_query(env, "ctxsdd_tests", task_desc, test_hits, "上下文打包（已过滤到任务相关文件）")
     print(f"[run-task] seekdb 检索: 规格 {len(spec_hits_latest)}/{len(spec_hits)} 块（最新版本），"
           f"代码 {len(code_hits)}，测试 {len(test_hits)}")
 
     # ---- 2. 上下文打包 ----
-    direct = sorted(set(targets) | set(REGRESSION_TESTS) | {f"{BUSINESS_DIR}/reading_list.py"})
     pack = build_pack(task_desc, spec_hits_latest, code_hits, test_hits, direct, env.root)
     pack_file = env.runs / f"context_pack_{task_no}.json"
     write_json(pack, pack_file)
