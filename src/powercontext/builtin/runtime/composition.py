@@ -166,6 +166,7 @@ from powercontext.builtin.sources import (
     BUILTIN_SOURCE_REGISTRY,
     TEXT_EVIDENCE_PROJECTION_KEY,
 )
+from powercontext.builtin.triggers import SOURCE_WINDOW_TRIGGER_NAME
 from powercontext.errors import InvalidSourceProjectionError, SourceProjectionNotFoundError
 from powercontext.sources import Source, SourceDefinitionRegistry, SourceProjectionKey
 
@@ -597,6 +598,14 @@ async def open_builtin_runtime(
                     prompts=dict(contexts.prompt_registry.capabilities),
                 ),
                 source_window_limit=config.runtime.source_window_limit,
+                source_count_trigger_bindings=tuple(
+                    binding
+                    for binding, threshold in (
+                        (SOURCE_WINDOW_TRIGGER_NAME, config.runtime.memory_source_count_threshold),
+                        (TOPIC_MEMORY_SOURCE_WINDOW_BINDING, config.runtime.topic_memory_source_count_threshold),
+                    )
+                    if threshold is not None
+                ),
                 context_assembly_max_entries=config.runtime.context_assembly_max_entries,
                 recall_sufficiency_policy=RecallSufficiencyPolicy.from_runtime_config(config.runtime),
                 scope_cache_size=config.runtime.scope_cache_size,
@@ -720,8 +729,15 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
         "profile": config.runtime.profile_schedule_enabled or None,
         "skill": None,
     }
+    count_thresholds = {
+        "memory": config.runtime.memory_source_count_threshold,
+        "topic-memory": config.runtime.topic_memory_source_count_threshold,
+    }
     for family, schedule in automatic.items():
-        if schedule is not None and family not in declared | registered:
+        # A count threshold starts processing like a schedule; it must not be
+        # configured for a Family that cannot process at all.
+        trigger = schedule or count_thresholds.get(family)
+        if trigger is not None and family not in declared | registered:
             if (
                 family == "topic-memory"
                 and config.runtime.artifact_processing_families is None
@@ -780,6 +796,7 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
                 max_workers=getattr(config.runtime, f"{prefix}_max_workers"),
                 worker_timeout_seconds=getattr(config.runtime, f"{prefix}_worker_timeout_seconds"),
                 automatic_processing_interval=None if interval is None else timedelta(seconds=float(interval)),
+                source_count_threshold=count_thresholds.get(family),
                 cron=config.runtime.profile_cron
                 if family == "profile" and config.runtime.profile_schedule_enabled
                 else None,
@@ -880,6 +897,14 @@ async def open_builtin_contexts(
     """Open the selected database and expose scope-bound PowerContext providers."""
 
     database = config.database
+    source_count_thresholds = {
+        binding: threshold
+        for binding, threshold in (
+            (SOURCE_WINDOW_TRIGGER_NAME, config.runtime.memory_source_count_threshold),
+            (TOPIC_MEMORY_SOURCE_WINDOW_BINDING, config.runtime.topic_memory_source_count_threshold),
+        )
+        if threshold is not None
+    }
     configured_token_estimator = character_token_estimator() if token_estimator is None else token_estimator
     if isinstance(database, SQLiteConfig):
         experience_index = SQLiteExperienceFTSIndex()
@@ -945,6 +970,7 @@ async def open_builtin_contexts(
                 handoff_verification_keys=handoff_verification_keys,
                 topic_memory_write_timeout_seconds=config.inference.embedding_timeout_seconds,
                 topic_memory_write_concurrency=config.runtime.generation_concurrency,
+                source_count_thresholds=source_count_thresholds,
                 model_usage_queue_capacity=config.runtime.model_usage_queue_capacity,
                 model_usage_write_timeout_seconds=config.runtime.model_usage_write_timeout_seconds,
                 model_usage_flush_timeout_seconds=config.runtime.model_usage_flush_timeout_seconds,
@@ -1026,6 +1052,7 @@ async def open_builtin_contexts(
             handoff_verification_keys=handoff_verification_keys,
             topic_memory_write_timeout_seconds=config.inference.embedding_timeout_seconds,
             topic_memory_write_concurrency=config.runtime.generation_concurrency,
+            source_count_thresholds=source_count_thresholds,
             model_usage_queue_capacity=config.runtime.model_usage_queue_capacity,
             model_usage_write_timeout_seconds=config.runtime.model_usage_write_timeout_seconds,
             model_usage_flush_timeout_seconds=config.runtime.model_usage_flush_timeout_seconds,

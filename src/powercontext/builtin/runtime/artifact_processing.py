@@ -47,6 +47,7 @@ else:
     from multiprocessing.popen_spawn_posix import Popen as SpawnPopen
 
 from powercontext._logging import log_safely
+from powercontext.builtin.persistence.cursors import SourceCursorRepository
 from powercontext.builtin.persistence.database import AsyncDatabase
 from powercontext.builtin.persistence.errors import ArtifactProcessingLeadershipLostError
 from powercontext.builtin.persistence.processing_intents import ArtifactProcessingIntentRepository
@@ -57,7 +58,11 @@ from powercontext.builtin.persistence.supervision import (
     ArtifactProcessingLeaseRepository,
     database_utc_now,
 )
-from powercontext.builtin.persistence.tables import ARTIFACT_PROCESSING_INTENTS_TABLE, ARTIFACT_PROCESSING_LEASES_TABLE
+from powercontext.builtin.persistence.tables import (
+    ARTIFACT_PROCESSING_INTENTS_TABLE,
+    ARTIFACT_PROCESSING_LEASES_TABLE,
+    SOURCE_JOURNAL_HEADS_TABLE,
+)
 from powercontext.builtin.runtime.processing_contracts import (
     ArtifactProcessingWorkAssignment,
     ArtifactProcessingWorkerCompletion,
@@ -83,6 +88,17 @@ _DISCOVERY_TIMEOUT_SECONDS = 2.0
 _SPAWN_SIGTERM_GRACE_SECONDS = 1.0
 _WORKER_SHUTDOWN_TIMEOUT_SECONDS = 5.0
 ProcessingKey = tuple[str, str]
+
+
+async def _pending_source_entries(connection: AsyncConnection, scope_id: str, binding_name: str, /) -> int:
+    """Count persisted journal identities after the binding's committed cursor."""
+
+    head = await connection.scalar(
+        select(SOURCE_JOURNAL_HEADS_TABLE.c.position).where(SOURCE_JOURNAL_HEADS_TABLE.c.scope_id == scope_id)
+    )
+    cursor = await SourceCursorRepository().load(connection, scope_id, binding_name)
+    sequence = 0 if cursor is None else cursor.cursor.sequence
+    return max(0, int(head or 0) - sequence)
 
 
 class ArtifactProcessingSupervisorStatus(StrEnum):
@@ -113,6 +129,9 @@ class ArtifactProcessingBinding:
     cron: str | None = None
     timezone: str = "Asia/Shanghai"
     config_prefix: str | None = None
+    # Optional strict positive Source entry threshold; reaching it re-requests
+    # processing after a successful invocation. None keeps time-only behavior.
+    source_count_threshold: int | None = None
     pending_provider: ArtifactProcessingPendingProvider | None = None
     # Only automatic admission is filtered; already accepted requests retain
     # their own Worker authorization and domain completion semantics.
@@ -136,6 +155,10 @@ class ArtifactProcessingBinding:
                 raise ValueError("automatic interval must be positive")  # noqa: TRY003
             if self.cron is not None:
                 raise ValueError("interval and cron cannot both be enabled")  # noqa: TRY003
+        if self.source_count_threshold is not None and (
+            type(self.source_count_threshold) is not int or self.source_count_threshold < 1
+        ):
+            raise ValueError("source_count_threshold must be a positive integer")  # noqa: TRY003
         if self.cron is not None:
             CronTrigger.from_crontab(self.cron, timezone=ZoneInfo(self.timezone))
 
@@ -986,6 +1009,13 @@ class ArtifactProcessingSupervisor:
                 async with self._database.transaction() as connection:
                     await self._leases.require_fence(connection, self._require_current_fence())
                     row = await self._intents.load(connection, scope, state.binding.binding_name)
+                    if state.binding.source_count_threshold is not None:
+                        # Re-evaluate the count trigger against the cursor this
+                        # invocation committed; a still-reached threshold chains
+                        # the next window without waiting for new input.
+                        pending = await _pending_source_entries(connection, scope, state.binding.binding_name)
+                        if pending >= state.binding.source_count_threshold:
+                            row = await self._intents.request(connection, scope, state.binding.binding_name)
                 if row is None or row.handled_generation < running.assignment.claimed_request_generation:
                     raise _WorkerExecutionError(  # noqa: TRY301
                         ArtifactProcessingWorkerFailure(
