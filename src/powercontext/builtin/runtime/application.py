@@ -143,7 +143,9 @@ from powercontext.builtin.persistence.artifact_governance import (
     ArtifactGovernance,
     ArtifactLifecycleState,
 )
+from powercontext.builtin.persistence.codec import load_model
 from powercontext.builtin.persistence.skill_publications import SkillPublication
+from powercontext.builtin.persistence.source_lifecycle import SourceLifecycleRepository
 from powercontext.builtin.publication import ArtifactPublicationApplication
 from powercontext.builtin.records import (
     ArtifactCreated,
@@ -249,6 +251,7 @@ from powercontext.builtin.runtime.recall_sufficiency import (
     build_recall_candidates,
     recall_effort,
 )
+from powercontext.builtin.runtime.source_lifecycle import SourceLifecycleHandle
 from powercontext.builtin.runtime.statistics import RelationalScopedStatistics, overview_selection
 from powercontext.builtin.scope import ScopeApplication, ScopeDescriptor, ScopeSelection
 from powercontext.builtin.scope.subject_sources import SubjectSourceService
@@ -2714,7 +2717,7 @@ class ScopedTopicMemoryApplication:
                         "unit": "topic-memory",
                     },
                 )
-        return result
+        return await self._runtime._filter_inactive_topics(self.scope_id, result)
 
     async def _search_with_embedding(
         self,
@@ -3144,6 +3147,7 @@ class BuiltinRuntime:
         self.memory = MemoryApplication(self)
         self.topic_memory = TopicMemoryApplication(self)
         self.records = RecordApplication(self)
+        self.lifecycle = SourceLifecycleHandle(self)
         self.prompts = PromptApplication(self)
         self.review = ReviewApplication(self)
         self.skill = SkillApplication(self)
@@ -3158,6 +3162,26 @@ class BuiltinRuntime:
 
     async def __aenter__(self) -> BuiltinRuntime:
         return self
+
+    async def _filter_inactive_topics(self, scope_id: str, result: TopicMemorySearchResult, /) -> TopicMemorySearchResult:
+        """Drop lifecycle-withdrawn Topic Memory artifacts from search results."""
+
+        async with self._context(scope_id):
+            async with self._provider.database.transaction() as connection:
+                nodes = await SourceLifecycleRepository().load_nodes(connection, scope_id)
+        if not any(node.kind == "topic" and node.state == "inactive" for node in nodes):
+            return result
+        withdrawn = frozenset(
+            self._topic_ref_key(load_model(ArtifactRef, node.reference, kind="lifecycle-reference", name=node.node_id))
+            for node in nodes
+            if node.kind == "topic" and node.state == "inactive"
+        )
+        hits = tuple(hit for hit in result.hits if self._topic_ref_key(hit.artifact_ref) not in withdrawn)
+        return result.model_copy(update={"hits": hits})
+
+    @staticmethod
+    def _topic_ref_key(reference: ArtifactRef, /) -> tuple[str, str, int]:
+        return (reference.family, reference.artifact_id, reference.revision)
 
     def _wake_source_count_triggers(self) -> None:
         """Re-check count-threshold bindings after one persisted Source entry.
