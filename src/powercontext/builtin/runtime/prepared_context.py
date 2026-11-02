@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from itertools import chain
@@ -106,6 +108,7 @@ class PreparedContextBuild:
     origins: tuple[PreparedContextOrigin, ...]
     omissions: PreparedContextOmissions = PreparedContextOmissions()
     code_origins: tuple[CodeEvidenceRef, ...] = ()
+    fragments: tuple[PreparedContextFragment, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -118,6 +121,16 @@ class MemoryEntryAddress:
 
 
 PreparedContextOrigin = MemoryCitation | ArtifactRef | MemoryEntryAddress | ArtifactAddress
+
+
+@dataclass(frozen=True)
+class PreparedContextFragment:
+    """One literal evidence span selected from one exact Memory entry version."""
+
+    address: MemoryEntryAddress
+    start: int
+    end: int
+    text: str
 
 
 @dataclass(frozen=True)
@@ -234,6 +247,13 @@ class PreparedContextBuilder:
             raise PreparedContextInvariantError("topic-memory-candidate-limit")
         if sum(len(candidates.hits) for candidates in experience_candidates) > self.experience_candidate_limit:
             raise PreparedContextInvariantError("experience-candidate-limit")
+
+        if request.evidence_selection:
+            return self._select_fragments(
+                request=request,
+                current_scope_id=current_scope_id,
+                memory_candidates=memory_candidates,
+            )
 
         content, origins, omissions = self._select_entries(
             request=request,
@@ -432,6 +452,86 @@ class PreparedContextBuilder:
             return None, (), omissions
         content = render_context_text(included, assembly)
         return content, tuple(origins), omissions
+
+    def _select_fragments(
+        self,
+        *,
+        request: PrepareContextRequest,
+        current_scope_id: str | None,
+        memory_candidates: Sequence[PreparedMemoryCandidates],
+    ) -> PreparedContextBuild:
+        """Select query-relevant literal fragments under the full output byte budget.
+
+        Sentences of the candidate entries are ranked by IDF-weighted query-token overlap,
+        then packed greedily so every accepted fragment keeps the rendered envelope, trust
+        policy and citations inside ``max_bytes``. Selected sentence runs are finally grown
+        toward their neighbors while the budget allows, which completes multi-sentence
+        evidence spans without spending bytes on relevance-free padding.
+        """
+
+        entries = _fragment_entries(current_scope_id, memory_candidates)
+        if not entries:
+            return PreparedContextBuild(context=self.empty(), origins=(), fragments=())
+        query_tokens = frozenset(_FRAGMENT_TOKEN_PATTERN.findall(request.query.lower()))
+        document_frequency: dict[str, int] = {}
+        for entry in entries:
+            for tokens in entry.sentence_tokens:
+                for token in tokens & query_tokens:
+                    document_frequency[token] = document_frequency.get(token, 0) + 1
+        total = sum(len(entry.sentence_tokens) for entry in entries)
+
+        def sentence_score(tokens: frozenset[str]) -> float:
+            return sum(math.log(1.0 + total / document_frequency[token]) for token in tokens & query_tokens)
+
+        ranked: list[tuple[float, int, int]] = []
+        for entry_index, entry in enumerate(entries):
+            for sentence_index, tokens in enumerate(entry.sentence_tokens):
+                score = sentence_score(tokens)
+                if score > 0.0:
+                    ranked.append((-score, entry_index, sentence_index))
+        ranked.sort()
+        chosen: dict[int, set[int]] = {entry_index: set() for entry_index in range(len(entries))}
+
+        def rendered_bytes() -> int:
+            return len(_render_fragment_items(_fragment_items(entries, chosen)).encode("utf-8"))
+
+        for _, entry_index, sentence_index in ranked:
+            if sentence_index in chosen[entry_index]:
+                continue
+            chosen[entry_index].add(sentence_index)
+            if rendered_bytes() > request.max_bytes:
+                chosen[entry_index].discard(sentence_index)
+        growing = True
+        while growing:
+            growing = False
+            for entry_index, entry in enumerate(entries):
+                for run in _contiguous_runs(chosen[entry_index]):
+                    for neighbor in (run[0] - 1, run[-1] + 1):
+                        if not 0 <= neighbor < len(entry.sentence_tokens) or neighbor in chosen[entry_index]:
+                            continue
+                        chosen[entry_index].add(neighbor)
+                        if rendered_bytes() <= request.max_bytes:
+                            growing = True
+                            break
+                        chosen[entry_index].discard(neighbor)
+        fragments: list[PreparedContextFragment] = []
+        for entry_index, entry in enumerate(entries):
+            for start, end in _fragment_spans(entry, chosen[entry_index]):
+                fragments.append(
+                    PreparedContextFragment(address=entry.address, start=start, end=end, text=entry.text[start:end])
+                )
+        if not fragments:
+            return PreparedContextBuild(context=self.empty(), origins=(), fragments=())
+        content = _render_fragment_items(_fragment_items(entries, chosen))
+        return PreparedContextBuild(
+            context=PreparedContext(
+                status="ready",
+                content=content,
+                content_bytes=len(content.encode("utf-8")),
+            ),
+            origins=tuple(fragment.address for fragment in fragments),
+            fragments=tuple(fragments),
+        )
 
     def _profile_entries(self, candidates: Sequence[PreparedProfileCandidate]) -> tuple[_PreparedContextEntry, ...]:
         entries = []
@@ -728,3 +828,109 @@ def _truncate_utf8(text: str, byte_budget: int) -> str:
     prefix_budget = byte_budget - len(_ELLIPSIS.encode("utf-8"))
     encoded_prefix = text.encode("utf-8")[:prefix_budget]
     return f"{encoded_prefix.decode('utf-8', errors='ignore')}{_ELLIPSIS}"
+
+
+_FRAGMENT_SENTENCE_PATTERN = re.compile(r"[^.!?。！？]+[.!?。！？]*")
+_FRAGMENT_TOKEN_PATTERN = re.compile(r"[a-z]+|\d+")
+
+
+@dataclass(frozen=True)
+class _FragmentEntry:
+    """One candidate Memory entry version with its sentence-shaped spans."""
+
+    address: MemoryEntryAddress
+    text: str
+    sentence_spans: tuple[tuple[int, int], ...]
+    sentence_tokens: tuple[frozenset[str], ...]
+
+
+def _fragment_entries(
+    current_scope_id: str | None,
+    memory_candidates: Sequence[PreparedMemoryCandidates],
+    /,
+) -> tuple[_FragmentEntry, ...]:
+    """Index every distinct candidate entry version once, preserving retrieval order."""
+
+    entries: list[_FragmentEntry] = []
+    for candidates in memory_candidates:
+        scope_id = candidates.scope_id or current_scope_id or ""
+        seen: set[tuple[str, str]] = set()
+        for hit in candidates.hits:
+            key = (hit.entry_id, hit.entry_version_id)
+            if key in seen or not hit.text.strip():
+                continue
+            seen.add(key)
+            spans = tuple(_sentence_spans(hit.text))
+            entries.append(
+                _FragmentEntry(
+                    address=MemoryEntryAddress(
+                        memory=ArtifactAddress(scope_id=scope_id, artifact=hit.memory_ref),
+                        entry_id=hit.entry_id,
+                        entry_version_id=hit.entry_version_id,
+                    ),
+                    text=hit.text,
+                    sentence_spans=spans,
+                    sentence_tokens=tuple(
+                        frozenset(_FRAGMENT_TOKEN_PATTERN.findall(hit.text[start:end].lower()))
+                        for start, end in spans
+                    ),
+                )
+            )
+    return tuple(entries)
+
+
+def _sentence_spans(text: str, /) -> tuple[tuple[int, int], ...]:
+    """Split one entry text into contiguous, whitespace-trimmed sentence spans."""
+
+    spans: list[tuple[int, int]] = []
+    for match in _FRAGMENT_SENTENCE_PATTERN.finditer(text):
+        start, end = match.start(), match.end()
+        while start < end and text[start].isspace():
+            start += 1
+        while end > start and text[end - 1].isspace():
+            end -= 1
+        if end > start:
+            spans.append((start, end))
+    return tuple(spans)
+
+
+def _contiguous_runs(indices: set[int], /) -> list[list[int]]:
+    runs: list[list[int]] = []
+    for index in sorted(indices):
+        if runs and index == runs[-1][-1] + 1:
+            runs[-1].append(index)
+        else:
+            runs.append([index])
+    return runs
+
+
+def _fragment_spans(entry: _FragmentEntry, chosen: set[int], /) -> tuple[tuple[int, int], ...]:
+    """Merge each contiguous run of chosen sentences into one literal span."""
+
+    return tuple(
+        (entry.sentence_spans[run[0]][0], entry.sentence_spans[run[-1]][1]) for run in _contiguous_runs(chosen)
+    )
+
+
+def _fragment_items(entries: Sequence[_FragmentEntry], chosen: dict[int, set[int]], /) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for entry_index, entry in enumerate(entries):
+        for start, end in _fragment_spans(entry, chosen[entry_index]):
+            items.append({
+                "citation": {
+                    "scope_id": entry.address.memory.scope_id,
+                    "memory_ref": entry.address.memory.artifact.model_dump(mode="json"),
+                    "entry_id": entry.address.entry_id,
+                    "entry_version_id": entry.address.entry_version_id,
+                },
+                "content": entry.text[start:end],
+                "start": start,
+                "end": end,
+            })
+    return items
+
+
+def _render_fragment_items(items: Sequence[dict[str, object]], /) -> str:
+    envelope = {"trust": "untrusted_history", "items": list(items)}
+    encoded = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
+    return "\n\n".join((TRUST_POLICY, f"{_BEGIN_MARKER}\n{encoded}\n{_END_MARKER}"))
