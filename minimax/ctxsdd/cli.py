@@ -175,7 +175,6 @@ def cmd_run_task(args) -> int:
     targets = args.targets or []
     task_no = len(state.data["tasks"]) + 1
     task_id = f"task_{task_no:03d}"
-    model = args.model or "MiniMax-M3"
 
     # ---- 1. seekdb 检索：实际查询结果用于任务上下文 ----
     spec_hits = store.query("ctxsdd_specs", task_desc, n=8)
@@ -216,7 +215,7 @@ def cmd_run_task(args) -> int:
     print(f"[run-task] 修改前: passed={pre['summary']['passed']} failed={pre['summary']['failed']}")
 
     # ---- 4. MiniMax 真实调用 + 多轮修复 ----
-    mm = MiniMaxClient(env.runs / "minimax_dev_log.jsonl", model=model)
+    mm = MiniMaxClient(env.runs / "minimax_dev_log.jsonl", model=args.model)
     before_snap = snapshot_tree(env.root / BUSINESS_DIR, env.root)
     (env.root / ".ctxsdd" / "snapshots").mkdir(parents=True, exist_ok=True)
     (env.root / ".ctxsdd" / "snapshots" / f"{task_id}_before.json").write_text(
@@ -284,7 +283,7 @@ def cmd_run_task(args) -> int:
         "targets": targets,
         "status": "success" if ok else "failed",
         "rounds": rounds,
-        "model": model,
+        "model": mm.model,
         "pack_id": pack["pack_id"],
         "pack_file": pack_file.relative_to(env.root).as_posix(),
         "diff_file": diff_file.relative_to(env.root).as_posix(),

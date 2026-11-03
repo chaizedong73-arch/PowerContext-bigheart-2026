@@ -1,0 +1,95 @@
+{
+  "initialized_at": "2026-11-03T15:21:44+0800",
+  "embedder": "st",
+  "specs": {
+    "reading_list_spec_v1": {
+      "latest_version": 1,
+      "file": "specs/reading_list_spec_v1.md",
+      "chunks": 6,
+      "imported_at": "2026-11-03T15:22:14+0800"
+    },
+    "reading_list_spec_v2": {
+      "latest_version": 2,
+      "file": "specs/reading_list_spec_v2.md",
+      "chunks": 6,
+      "imported_at": "2026-11-03T15:23:19+0800"
+    }
+  },
+  "code_index": {
+    "business/reading_list/reading_list.py": 375,
+    "business/reading_list/tests/conftest.py": 146,
+    "business/reading_list/tests/test_regression.py": 795,
+    "business/reading_list/tests/test_spec_update.py": 1040,
+    "business/reading_list/tests/test_target_features.py": 1024
+  },
+  "tasks": [
+    {
+      "id": "task_001",
+      "created_at": "2026-11-03T15:23:02+0800",
+      "description": "任务：按照当前有效规格实现读书清单的缺失功能。\n\n当前 `business/reading_list/reading_list.py` 只有 add_book 与 list_books，\n缺少规格 v1 要求的 rating 字段、filter_by_genre 与 export_csv。\n\n目标测试 `business/reading_list/tests/test_target_features.py` 当前失败。\n请以 seekdb 检索到的最新规格为准实现这三个能力，使目标测试全部通过，\n并保持回归测试 `business/reading_list/tests/test_regression.py` 全部通过。",
+      "targets": [
+        "business/reading_list/tests/test_target_features.py"
+      ],
+      "status": "success",
+      "rounds": 1,
+      "model": "MiniMax-M3.1-Flash",
+      "pack_id": "pack_8c7510231d",
+      "pack_file": "docs/runs/context_pack_1.json",
+      "diff_file": "docs/runs/code_diff_1.txt",
+      "changed_files": [
+        "business/reading_list/reading_list.py"
+      ],
+      "tests_before": {
+        "total": 7,
+        "passed": 4,
+        "failed": 3,
+        "skipped": 0,
+        "ok": false
+      },
+      "tests_after": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "ok": true
+      }
+    },
+    {
+      "id": "task_002",
+      "created_at": "2026-11-03T15:23:48+0800",
+      "description": "任务：规格已更新到 v2，请按更新后的规格调整实现。\n\nv2 相对 v1 的变更：\n1. `export_csv` 数据行必须按 title 不区分大小写的字母序排序；\n2. `add_book` 必须校验显式传入的 rating 在 0-5 范围内（整数），否则抛出 ValueError。\n\n目标测试 `business/reading_list/tests/test_spec_update.py` 当前失败。\n请以 seekdb 检索到的最新规格（v2）为准修改实现，使目标测试全部通过，\n并保持 `test_target_features.py` 与 `test_regression.py` 等回归测试全部通过。",
+      "targets": [
+        "business/reading_list/tests/test_spec_update.py"
+      ],
+      "status": "success",
+      "rounds": 1,
+      "model": "MiniMax-M3.1-Flash",
+      "pack_id": "pack_591345e700",
+      "pack_file": "docs/runs/context_pack_2.json",
+      "diff_file": "docs/runs/code_diff_2.txt",
+      "changed_files": [
+        "business/reading_list/reading_list.py"
+      ],
+      "tests_before": {
+        "total": 6,
+        "passed": 4,
+        "failed": 2,
+        "skipped": 0,
+        "ok": false
+      },
+      "tests_after": {
+        "total": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "ok": true
+      }
+    }
+  ],
+  "collections": {
+    "ctxsdd_specs": 0,
+    "ctxsdd_code": 0,
+    "ctxsdd_tests": 0
+  },
+  "code_index_imported_at": "2026-11-03T15:22:00+0800"
+}

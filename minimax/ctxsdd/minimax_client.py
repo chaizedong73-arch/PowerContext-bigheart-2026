@@ -22,8 +22,10 @@ class MiniMaxError(CtxsddError):
 
 
 class MiniMaxClient:
-    def __init__(self, log_path: Path, model: str = DEFAULT_MODEL, api_key: str | None = None):
-        self.model = model
+    def __init__(self, log_path: Path, model: str = None, api_key: str | None = None):
+        # 站点/模型可用环境变量覆盖：国内站 api.minimaxi.com、模型按可用池选择
+        self.url = os.environ.get("CTXSDD_MINIMAX_API_URL", API_URL)
+        self.model = model or os.environ.get("CTXSDD_MINIMAX_MODEL") or DEFAULT_MODEL
         self.api_key = (api_key or os.environ.get("MINIMAX_API_KEY") or "").strip()
         if not self.api_key:
             raise MiniMaxError(
@@ -34,55 +36,62 @@ class MiniMaxClient:
 
     def chat(self, messages: list[dict], temperature: float = 0.3) -> str:
         body = {"model": self.model, "messages": messages, "temperature": temperature}
-        start = time.time()
-        try:
-            resp = requests.post(
-                API_URL,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=body,
-                timeout=300,
-            )
-        except requests.RequestException as e:
-            self._log(body, None, None, int((time.time() - start) * 1000), {"exception": str(e)})
-            raise MiniMaxError(f"MiniMax API 请求失败: {e}") from e
+        last_err = None
+        for attempt in range(4):
+            start = time.time()
+            try:
+                resp = requests.post(
+                    self.url,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
+                    timeout=300,
+                )
+            except requests.RequestException as e:
+                self._log(body, None, None, int((time.time() - start) * 1000), {"exception": str(e)})
+                raise MiniMaxError(f"MiniMax API 请求失败: {e}") from e
 
-        latency = int((time.time() - start) * 1000)
-        try:
-            data = resp.json()
-        except ValueError:
-            self._log(body, None, None, latency, {"http_status": resp.status_code})
-            raise MiniMaxError(f"MiniMax API 返回非 JSON（HTTP {resp.status_code}）")
-
-        base = data.get("base_resp") or {}
-        if base.get("status_code", 0) != 0:
-            hint = ""
-            if base.get("status_code") == 1008:
-                hint = "（余额不足：请到 MiniMax 开放平台激活/充值 Token 包）"
-            self._log(body, None, None, latency, base)
-            raise MiniMaxError(
-                f"MiniMax API 错误 status_code={base.get('status_code')} "
-                f"status_msg={base.get('status_msg')}{hint}"
+            latency = int((time.time() - start) * 1000)
+            if resp.status_code in (429, 529):
+                last_err = f"HTTP {resp.status_code} 过载"
+                self._log(body, None, None, latency, {"http_status": resp.status_code, "retry": attempt + 1})
+                time.sleep(10)
+                continue
+            try:
+                data = resp.json()
+            except ValueError:
+                self._log(body, None, None, latency, {"http_status": resp.status_code})
+                raise MiniMaxError(f"MiniMax API 返回非 JSON（HTTP {resp.status_code}）")
+            base = data.get("base_resp") or {}
+            if base.get("status_code", 0) != 0:
+                hint = ""
+                if base.get("status_code") == 1008:
+                    hint = "（余额不足：请到 MiniMax 开放平台激活/充值 Token 包）"
+                self._log(body, None, None, latency, base)
+                raise MiniMaxError(
+                    f"MiniMax API 错误 status_code={base.get('status_code')} "
+                    f"status_msg={base.get('status_msg')}{hint}"
+                )
+            try:
+                message = data["choices"][0]["message"]
+            except (KeyError, IndexError):
+                self._log(body, None, None, latency, data)
+                raise MiniMaxError(f"MiniMax API 响应缺少 choices: {data}")
+            content = message.get("content") or ""
+            self._log(
+                body,
+                content,
+                message.get("reasoning_content"),
+                latency,
+                base,
+                usage=data.get("usage"),
             )
-        try:
-            message = data["choices"][0]["message"]
-        except (KeyError, IndexError):
-            self._log(body, None, None, latency, data)
-            raise MiniMaxError(f"MiniMax API 响应缺少 choices: {data}")
-        content = message.get("content") or ""
-        self._log(
-            body,
-            content,
-            message.get("reasoning_content"),
-            latency,
-            base,
-            usage=data.get("usage"),
-        )
-        if not content.strip():
-            raise MiniMaxError("MiniMax API 返回空 content")
-        return content
+            if not content.strip():
+                raise MiniMaxError("MiniMax API 返回空 content")
+            return content
+        raise MiniMaxError(f"MiniMax API 连续过载（{last_err}），请稍后重试")
 
     def _log(self, request_body, content, reasoning, latency_ms, base_resp, usage=None):
         record = {

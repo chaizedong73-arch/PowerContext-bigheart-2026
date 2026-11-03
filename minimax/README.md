@@ -42,6 +42,10 @@ pip install -r requirements.txt
 export MINIMAX_API_KEY=sk-...        # 需要有效余额
 export HF_ENDPOINT=https://hf-mirror.com   # 可选：首次下载嵌入模型走镜像
 
+# 可选：站点与模型覆盖（国际站默认 https://api.minimax.io；国内站示例）
+# export CTXSDD_MINIMAX_API_URL=https://api.minimaxi.com/v1/text/chatcompletion_v2
+# export CTXSDD_MINIMAX_MODEL=MiniMax-M3.1-Flash
+
 bash scripts/run_e2e.sh
 ```
 
