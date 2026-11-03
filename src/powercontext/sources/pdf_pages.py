@@ -26,7 +26,8 @@ from pydantic import BaseModel
 from pypdf import PasswordType, PdfReader
 
 from powercontext.artifacts import MemoryCitation
-from powercontext.builtin.runtime import SearchMemoryRequest
+from powercontext.builtin.artifacts.search import analyze_fts_query
+from powercontext.builtin.runtime import GetMemoryEntryRequest, SearchMemoryRequest
 from powercontext.limits import MAX_SOURCE_ID_LENGTH
 from powercontext.sources import TEXT_EVIDENCE_PROJECTION_KEY, AdapterSourceDefinition, TextEvidence
 from powercontext.sources.models import Source, SourceMaterialization
@@ -223,12 +224,191 @@ PDF_PAGE_SOURCE_DEFINITION = AdapterSourceDefinition(
 
 
 async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[MemoryCitation, ...]:
-    """Search a scoped Memory for at most ``limit`` distinct page citations."""
+    """Search a scoped Memory for at most ``limit`` distinct page citations.
+
+    离线查询处理与重排：先以多组查询变体做 FTS 粗召（整题、逐句、带词形放宽的
+    关键词条、财报表头短语），RRF 加权融合后按报表主表页与邻页先验重排，返回
+    全部经过真实 Memory 搜索命中的页面引用。
+    """
 
     if limit < 1 or not isinstance(question, str) or question.strip() == "":
         return ()
-    page = await memory.search(SearchMemoryRequest(query=question, mode="fts", limit=limit))
+    coarse = max(limit * 4, 64)
+    fused: dict[tuple[str, str], list] = {}
+    for weight, variant in _query_variants(question):
+        page = await memory.search(SearchMemoryRequest(query=variant, mode="fts", limit=coarse))
+        for rank, hit in enumerate(page.hits, start=1):
+            key = (hit.entry_id, hit.entry_version_id)
+            fused.setdefault(key, [0.0, hit])
+            fused[key][0] += weight / (60.0 + rank)
+    if not fused:
+        return ()
+    groups = _triggered_groups(question)
+    rescored = []
+    for rrf, hit in fused.values():
+        bonus = 0.0
+        if groups:
+            head = (hit.text or "")[:_HEADER_WINDOW]
+            for group in groups:
+                if _HEADER_PROBES[group].search(head):
+                    bonus += _STATEMENT_BONUS
+        rescored.append([rrf + bonus, rrf, hit, bonus])
+    rescored.sort(key=lambda item: (-item[0], -item[1], item[2].entry_id))
+    await _apply_page_priors(memory, rescored, groups)
+    rescored.sort(key=lambda item: (-item[0], -item[1], item[2].entry_id))
     return tuple(
         MemoryCitation(memory_ref=hit.memory_ref, entry_id=hit.entry_id, entry_version_id=hit.entry_version_id)
-        for hit in page.hits
+        for _score, _rrf, hit, _bonus in rescored[:limit]
     )
+
+
+_STATEMENT_BONUS = 0.09
+_QUALITATIVE_BONUS = 0.02
+_QUALITATIVE_PAGE_WINDOW = 40
+_NEIGHBOR_BONUS = {1: 0.03, 2: 0.02}
+_HEADER_WINDOW = 700
+_RRF_CONSTANT = 60.0
+_COARSE_MULTIPLIER = 4
+_COARSE_FLOOR = 64
+_SINGLE_TERM_CAP = 14
+_VARIANT_CAP = 30
+
+# 报表类型触发词与主表页表头探测: 定量指标的 gold 页通常是财报主表页, 主表页
+# 页首带 "Consolidated Statements of ..." 等固定表头, 可以离线探测后加权.
+_REPORT_GROUPS = {
+    "income": "consolidated statements of operations income",
+    "balance": "consolidated balance sheets",
+    "cash": "consolidated statements cash flows",
+    "segment": "business segment data revenues",
+}
+_REPORT_TRIGGERS = {
+    "income": {"margin", "ebitda", "operating", "gross", "tax", "income", "earnings", "profit", "sales", "revenue", "revenues", "cogs", "capital"},
+    "balance": {"liquidity", "ratio", "payable", "inventory", "asset", "assets", "liabilities", "debt", "cash", "capital", "intensive"},
+    "cash": {"cash", "capex", "depreciation", "amortization", "ebitda", "payable", "capital", "intensive"},
+    "segment": {"segment", "segments", "product", "products", "service", "services", "categories", "category"},
+}
+_HEADER_PROBES = {
+    "income": re.compile(r"consolidated statements? of operations|consolidated statements? of income|statements? of operations", re.I),
+    "balance": re.compile(r"consolidated balance sheets?|balance sheets?", re.I),
+    "cash": re.compile(r"consolidated statements? of cash flows|statements? of cash flows", re.I),
+    "segment": re.compile(r"business segment data|segment data|by business segment|reportable segments?", re.I),
+}
+_LEGAL_SYNONYMS = {
+    "legal": "legal proceedings",
+    "battles": "legal proceedings",
+    "lawsuits": "legal proceedings",
+    "litigation": "legal proceedings",
+}
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+_RRF_WEIGHTS = {"full": 3.0, "sentence": 2.0, "single": 1.0, "report": 2.0}
+
+
+def _term_variants(term: str, /) -> set[str]:
+    """Widen one query term with conservative morphological variants.
+
+    FTS 分析不做词干化, 单复数 (customers/customer)、-ality/-al
+    (cyclicality/cyclical) 与财年写法 (fy2022/2022) 需要显式放宽才能召回.
+    """
+
+    variants = {term}
+    year = re.fullmatch(r"fy(\d{2,4})", term)
+    if year:
+        variants.add(year.group(1))
+        if len(year.group(1)) == 2 and year.group(1).isdigit() and int(year.group(1)) < 60:
+            variants.add("20" + year.group(1))
+    if len(term) >= 6 and term.endswith("ality"):
+        variants.add(term[:-5] + "al")
+    if len(term) >= 4 and term.endswith("ies"):
+        variants.add(term[:-3] + "y")
+    elif len(term) >= 4 and term.endswith("es"):
+        variants.add(term[:-2])
+    elif len(term) >= 4 and term.endswith("s") and not term.endswith("ss"):
+        variants.add(term[:-1])
+    return variants
+
+
+def _salient_terms(question: str, /) -> list[str]:
+    return list(dict.fromkeys(analyze_fts_query(question).split()))
+
+
+def _query_variants(question: str, /) -> list[tuple[float, str]]:
+    variants: list[tuple[float, str, str]] = []
+    full = analyze_fts_query(question)
+    if full:
+        variants.append((_RRF_WEIGHTS["full"], full, "full"))
+    for sentence in _SENTENCE_SPLIT.split(question):
+        terms = analyze_fts_query(sentence).split()
+        if len(terms) >= 2:
+            variants.append((_RRF_WEIGHTS["sentence"], " ".join(terms), "sentence"))
+    for term in _salient_terms(question)[:_SINGLE_TERM_CAP]:
+        variants.append((_RRF_WEIGHTS["single"], " ".join(sorted(_term_variants(term))), "single"))
+        synonym = _LEGAL_SYNONYMS.get(term)
+        if synonym:
+            variants.append((_RRF_WEIGHTS["single"], synonym, "single"))
+    question_terms = set(_salient_terms(question))
+    for group, trigger_terms in _REPORT_TRIGGERS.items():
+        if question_terms & trigger_terms:
+            variants.append((_RRF_WEIGHTS["report"], _REPORT_GROUPS[group], "report"))
+    unique: list[tuple[float, str]] = []
+    seen = set()
+    for weight, variant, _kind in variants:
+        if variant not in seen:
+            seen.add(variant)
+            unique.append((weight, variant))
+    return unique[:_VARIANT_CAP]
+
+
+def _triggered_groups(question: str, /) -> set[str]:
+    question_terms = set(_salient_terms(question))
+    return {group for group, trigger_terms in _REPORT_TRIGGERS.items() if question_terms & trigger_terms}
+
+
+def _page_of_source_id(source_id: object, /) -> int | None:
+    """Parse the physical page number back out of a pdf-page source id."""
+
+    if not isinstance(source_id, str) or not source_id.startswith(_PDF_IDENTITY_PREFIX):
+        return None
+    tail = source_id.rsplit(":", 1)[-1]
+    try:
+        return int(tail)
+    except ValueError:
+        return None
+
+
+async def _apply_page_priors(memory, rescored: list[list], groups: set[str], /) -> None:
+    """Resolve page numbers once and apply statement-cluster / qualitative priors.
+
+    主表页成簇出现 (利润表/资产负债表/现金流量表连续排布), 以表头加成页为锚,
+    给池内相邻页加成; 纯定性业务问题没有指标触发时, 给文档开头的业务章节页
+    轻微加成. 页码从 citation 回查的 source id 中解析, 解析失败则保持纯 RRF 排序.
+    """
+
+    probe = rescored[:80]
+    page_numbers: dict[int, int] = {}
+    for item in probe:
+        citation = MemoryCitation(
+            memory_ref=item[2].memory_ref, entry_id=item[2].entry_id, entry_version_id=item[2].entry_version_id
+        )
+        try:
+            entry = (await memory.get(GetMemoryEntryRequest(citation=citation))).entry
+        except Exception:
+            continue
+        for reference in entry.sources:
+            page_number = _page_of_source_id(reference.source_id)
+            if page_number is not None:
+                page_numbers[id(item[2])] = page_number
+                break
+    anchors = [page_numbers[id(item[2])] for item in rescored[:40] if item[3] > 0 and id(item[2]) in page_numbers]
+    for item in rescored:
+        page_number = page_numbers.get(id(item[2]))
+        if page_number is None or item[3] > 0:
+            continue
+        if anchors:
+            neighbor_bonus = 0.0
+            for anchor in anchors:
+                distance = abs(page_number - anchor)
+                if distance in _NEIGHBOR_BONUS:
+                    neighbor_bonus += _NEIGHBOR_BONUS[distance]
+            item[0] += neighbor_bonus
+        elif not groups and page_number <= _QUALITATIVE_PAGE_WINDOW:
+            item[0] += _QUALITATIVE_BONUS
