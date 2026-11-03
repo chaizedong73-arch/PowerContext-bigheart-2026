@@ -1,0 +1,57 @@
+[
+  {
+    "card_id": "doc_620d55e6cbe5",
+    "result": "pass",
+    "question": "关于《数据库基本组成》：＿＿＿统通常由存储引擎、事务管理、查询优化器与执行器组成？（来源：os-basics.md）",
+    "answer": "一个数据库系",
+    "knowledge": "一个数据库系",
+    "source": "os-basics.md",
+    "title": "数据库基本组成",
+    "ts": 1793739409,
+    "attempt": 1
+  },
+  {
+    "card_id": "doc_bc768036482f",
+    "result": "pass",
+    "question": "关于《存储引擎与 LSM-Tree》：＿＿＿ 的存储引擎基于 LSM-Tree 结构，分为内存中的 MemTable 与磁盘上的 SSTable 两层？（来源：os-basics.md）",
+    "answer": "OceanBase",
+    "knowledge": "OceanBase",
+    "source": "os-basics.md",
+    "title": "存储引擎与 LSM-Tree",
+    "ts": 1793739409,
+    "attempt": 1
+  },
+  {
+    "card_id": "doc_271a6b515a65",
+    "result": "fail",
+    "question": "关于《事务与一致性》：＿＿＿ 支持完整 ACID 事务，默认隔离级别为读已提交（Read Committed）？（来源：os-basics.md）",
+    "answer": "OceanBase",
+    "knowledge": "OceanBase",
+    "source": "os-basics.md",
+    "title": "事务与一致性",
+    "ts": 1793739409,
+    "attempt": 1
+  },
+  {
+    "card_id": "doc_53e4346c254e",
+    "result": "fail",
+    "question": "关于《向量检索与 seekdb》：＿＿＿ 是面向 AI 场景的数据库能力，支持向量索引与混合检索？（来源：os-basics.md）",
+    "answer": "seekdb",
+    "knowledge": "seekdb",
+    "source": "os-basics.md",
+    "title": "向量检索与 seekdb",
+    "ts": 1793739410,
+    "attempt": 1
+  },
+  {
+    "card_id": "doc_4c00928fe442",
+    "result": "fuzzy",
+    "question": "关于《两组件分工》：在本项目中，＿＿＿ 与 PowerContext 各司其职、互不重叠？（来源：os-basics.md）",
+    "answer": "seekdb",
+    "knowledge": "seekdb",
+    "source": "os-basics.md",
+    "title": "两组件分工",
+    "ts": 1793739410,
+    "attempt": 1
+  }
+]

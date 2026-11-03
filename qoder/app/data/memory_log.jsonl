@@ -1,0 +1,25 @@
+{"ts": 1793739409, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 0}}
+{"ts": 1793739409, "endpoint": "/v1/sources/content", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "source_id": "review-1793739409-05f696f3", "content_len": 122}, "response": {"status": "accepted", "position": 1}}
+{"ts": 1793739409, "endpoint": "/v1/sources/content", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "source_id": "review-1793739409-43696c78", "content_len": 170}, "response": {"status": "accepted", "position": 2}}
+{"ts": 1793739409, "endpoint": "/v1/sources/content", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "source_id": "review-1793739409-d0eef6ca", "content_len": 142}, "response": {"status": "accepted", "position": 3}}
+{"ts": 1793739410, "endpoint": "/v1/memory/remember", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "kind": "observation", "text": "薄弱知识点：OceanBase，来源 os-basics.md，第 1 次答错（不会）"}, "response": {"status": "ok"}}
+{"ts": 1793739410, "endpoint": "/v1/sources/content", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "source_id": "review-1793739410-728563db", "content_len": 135}, "response": {"status": "accepted", "position": 4}}
+{"ts": 1793739410, "endpoint": "/v1/memory/remember", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "kind": "observation", "text": "薄弱知识点：seekdb，来源 os-basics.md，第 1 次答错（不会）"}, "response": {"status": "ok"}}
+{"ts": 1793739410, "endpoint": "/v1/sources/content", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "source_id": "review-1793739410-226a0aef", "content_len": 125}, "response": {"status": "accepted", "position": 5}}
+{"ts": 1793739411, "endpoint": "/v1/memory/remember", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "kind": "observation", "text": "薄弱知识点：seekdb，来源 os-basics.md，第 1 次答错（模糊）"}, "response": {"status": "ok"}}
+{"ts": 1793739432, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739432, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739432, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739432, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739432, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739432, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739432, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739433, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739592, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739593, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739627, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793739630, "endpoint": "/v1/context/prepare", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱知识点 复习偏好 上次复习进度", "max_bytes": 4000}, "response": {"status": "ready", "content_bytes": 1288}}
+{"ts": 1793739630, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793740052, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793740052, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}
+{"ts": 1793740090, "endpoint": "/v1/memory/search", "request": {"scope_id": "scp_4y5bypa0y6njp369ykn7btggvt", "query": "薄弱", "limit": 10}, "response": {"hits": 3}}

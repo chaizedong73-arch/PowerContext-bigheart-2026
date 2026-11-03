@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>复习教练 RecallLoop</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🔁</span>
+      <div>
+        <h1>复习教练 RecallLoop</h1>
+        <p class="tagline">导入资料 → 带出处提问 → 复习自测 → 记住薄弱点 → 下次接着学</p>
+      </div>
+    </div>
+    <div class="status-pill" id="statusPill" title="后端连接状态">检测中…</div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="about" role="tab">关于</button>
+    <button class="tab" data-tab="library" role="tab">资料库</button>
+    <button class="tab" data-tab="ask" role="tab">问答</button>
+    <button class="tab" data-tab="review" role="tab">复习</button>
+    <button class="tab" data-tab="progress" role="tab">进度</button>
+  </nav>
+
+  <div id="demoBanner" class="demo-banner hidden">
+    演示模式：后端未连接，使用内置示例数据，按钮可点、流程可走通。完整功能见本地部署（RUNBOOK）。
+  </div>
+
+  <main>
+    <!-- 关于 / 站点首页 -->
+    <section class="panel active" id="panel-about">
+      <div class="hero">
+        <h2 class="hero-title">个人复习教练 <span>RecallLoop</span></h2>
+        <p class="hero-sub">把散落的资料变成「可检索、可自测、能记住你薄弱点」的复习闭环。</p>
+        <ul class="hero-lines">
+          <li>导入讲义/笔记，seekdb 三路混合检索，回答句句带出处。</li>
+          <li>机械挖空自测，「不会/模糊」自动写入 PowerContext 记忆。</li>
+          <li>下次打开接着学：跨会话续接上次进度，薄弱点优先出题。</li>
+        </ul>
+        <div class="hero-cta">
+          <button class="primary" data-goto="ask">立即体验演示（问答）</button>
+          <a class="ghost btn-link" href="https://github.com/chaizedong73-arch/PowerContext-bigheart-2026" target="_blank" rel="noopener">查看代码仓库</a>
+        </div>
+        <p class="hero-note">本页无需后端即可浏览；未连接后端时自动进入<strong>演示模式</strong>（内置示例数据，按钮可点、流程可走通）。完整功能见本地部署。</p>
+      </div>
+
+      <div class="card">
+        <h3>解决的问题</h3>
+        <div class="grid-3">
+          <div class="mini"><div class="mini-ic">📚</div><strong>资料散</strong><p>讲义、笔记、文档各处堆放，找一个知识点要翻半天。</p></div>
+          <div class="mini"><div class="mini-ic">🔂</div><strong>复习无闭环</strong><p>看过就忘，没有自测、没有错题沉淀，复习全靠感觉。</p></div>
+          <div class="mini"><div class="mini-ic">🧵</div><strong>进度不连续</strong><p>换个设备/隔几天再学，上次到哪、哪里薄弱全丢了。</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>核心功能</h3>
+        <div class="grid-2">
+          <div class="feat"><span class="feat-n">1</span><div><strong>资料导入</strong><p>Markdown/文本切块，seekdb 建 HNSW 向量索引（cosine）+ 元数据。</p></div></div>
+          <div class="feat"><span class="feat-n">2</span><div><strong>带出处问答</strong><p>向量相似 + 关键词 + 结构化(source)过滤三路混合检索，Top-5 句给出处。</p></div></div>
+          <div class="feat"><span class="feat-n">3</span><div><strong>复习自测</strong><p>机械挖空出题，薄弱点来源优先；自评「会/模糊/不会」写入 PowerContext。</p></div></div>
+          <div class="feat"><span class="feat-n">4</span><div><strong>跨会话续接</strong><p>context/prepare 取回历史进度与薄弱点，重启后今日清单接着排。</p></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>演示 <span class="demo-tag">演示模式内置数据的真实界面渲染</span></h3>
+        <div class="shots">
+          <figure class="shot">
+            <figcaption>① 问答带出处（seekdb 三路混合检索）</figcaption>
+            <div class="shot-body" id="shotAsk"></div>
+          </figure>
+          <figure class="shot">
+            <figcaption>② 复习自评（机械挖空 + 会/模糊/不会）</figcaption>
+            <div class="shot-body" id="shotReview"></div>
+          </figure>
+          <figure class="shot">
+            <figcaption>③ 跨会话续接（PowerContext 进度页）</figcaption>
+            <div class="shot-body" id="shotProgress"></div>
+          </figure>
+        </div>
+        <p class="hint">以上为演示模式快照；点击顶部「问答 / 复习 / 进度」标签可交互体验。静态截图见仓库 <code>qoder/site-material/screenshots/</code>。</p>
+      </div>
+
+      <div class="card">
+        <h3>体验入口</h3>
+        <div class="grid-2">
+          <div class="entry">
+            <strong>在线演示（本页）</strong>
+            <p>无需部署、无需 API Key。下方按钮直接进入演示模式交互。</p>
+            <div class="row">
+              <button class="primary small" data-goto="library">资料库</button>
+              <button class="primary small" data-goto="ask">问答</button>
+              <button class="primary small" data-goto="review">复习</button>
+              <button class="primary small" data-goto="progress">进度</button>
+            </div>
+          </div>
+          <div class="entry">
+            <strong>本地部署（完整功能）</strong>
+            <p>后端依赖 WSL2/Linux（pyseekdb wheel 限制）。按 RUNBOOK 启动 seekdb + PowerContext + 应用，获得真实检索与记忆。</p>
+            <a class="ghost btn-link" href="https://github.com/chaizedong73-arch/PowerContext-bigheart-2026/blob/2026-competition-ecosystem/qoder/RUNBOOK.md" target="_blank" rel="noopener">运行说明 RUNBOOK.md</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 资料库 -->
+    <section class="panel" id="panel-library">
+      <div class="panel-head">
+        <h2>资料库</h2>
+        <span class="tech-badge" data-tech="seekdb：资料切块 → 向量索引(HNSW,cosine) + 元数据(source/title/index)">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <h3>导入资料</h3>
+        <label>文件名<input id="docName" type="text" placeholder="例如 os-basics.md" /></label>
+        <label>选择文件<input id="docFile" type="file" accept=".md,.txt,text/markdown,text/plain" /></label>
+        <label>或直接粘贴内容<textarea id="docContent" rows="6" placeholder="# 标题&#10;正文…（支持 Markdown）"></textarea></label>
+        <div class="row">
+          <button id="btnImport" class="primary">导入并建索引</button>
+          <span id="importMsg" class="msg"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>已导入资料 <button id="btnRefreshDocs" class="ghost small">刷新</button></h3>
+        <ul id="docList" class="doc-list"><li class="empty">加载中…</li></ul>
+      </div>
+    </section>
+
+    <!-- 问答 -->
+    <section class="panel" id="panel-ask">
+      <div class="panel-head">
+        <h2>问答</h2>
+        <span class="tech-badge" data-tech="seekdb：向量相似 + 关键词匹配 + 结构化(source)过滤 三路混合检索，返回带出处 Top-5">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <label>你的问题<input id="askInput" type="text" placeholder="例如：seekdb 和 PowerContext 在本项目中如何分工？" /></label>
+        <div class="row">
+          <label class="inline">按来源过滤
+            <select id="askSource"><option value="">全部来源</option></select>
+          </label>
+          <button id="btnAsk" class="primary">检索</button>
+        </div>
+        <p class="hint">检索：seekdb 向量+关键词+结构化混合</p>
+      </div>
+      <div id="askResults" class="results"></div>
+    </section>
+
+    <!-- 复习 -->
+    <section class="panel" id="panel-review">
+      <div class="panel-head">
+        <h2>复习</h2>
+        <span class="tech-badge" data-tech="出题优先 PowerContext 薄弱点来源；自评结果写入 PowerContext Memory（observation）">技术说明 ⓘ</span>
+      </div>
+      <div class="card" id="reviewStart">
+        <div class="row">
+          <label class="inline">卡片数量<input id="cardCount" type="number" value="5" min="1" max="20" /></label>
+          <button id="btnStartReview" class="primary">开始复习</button>
+        </div>
+        <p class="hint">记忆：PowerContext（薄弱点优先出题）</p>
+      </div>
+      <div class="card hidden" id="reviewCard">
+        <div class="card-progress" id="cardProgress"></div>
+        <p class="question" id="cardQuestion"></p>
+        <p class="meta" id="cardMeta"></p>
+        <div class="reveal hidden" id="cardReveal">
+          <p><strong>答案：</strong><span id="cardAnswer"></span></p>
+          <p class="src" id="cardSource"></p>
+        </div>
+        <div class="row selfrate">
+          <button class="rate pass" data-result="pass">会</button>
+          <button class="rate fuzzy" data-result="fuzzy">模糊</button>
+          <button class="rate fail" data-result="fail">不会</button>
+        </div>
+      </div>
+      <div class="card hidden" id="reviewDone">
+        <h3>本次复习统计</h3>
+        <div id="reviewStats"></div>
+        <button id="btnReviewAgain" class="ghost">再来一组</button>
+      </div>
+    </section>
+
+    <!-- 进度 -->
+    <section class="panel" id="panel-progress">
+      <div class="panel-head">
+        <h2>进度</h2>
+        <span class="tech-badge" data-tech="PowerContext：/v1/context/prepare 取回历史上下文实现跨会话续接；/v1/memory/search 列出薄弱点">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <h3>上次复习 <span id="memStatus" class="chip">—</span></h3>
+        <pre id="lastContext" class="context-box">加载中…</pre>
+      </div>
+      <div class="card">
+        <h3>今日推荐清单</h3>
+        <ul id="planList" class="plan-list"><li class="empty">加载中…</li></ul>
+      </div>
+      <div class="card">
+        <h3>薄弱点（来自 PowerContext 记忆）</h3>
+        <ul id="weakList" class="weak-list"><li class="empty">加载中…</li></ul>
+      </div>
+      <div class="card">
+        <h3>复习偏好</h3>
+        <div class="row">
+          <label class="inline">每天<input id="prefMinutes" type="number" value="20" min="1" />分钟</label>
+          <label class="inline">优先方向<input id="prefFocus" type="text" placeholder="例如 高频考点" /></label>
+          <button id="btnSavePref" class="primary">保存偏好</button>
+        </div>
+        <span id="prefMsg" class="msg"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>基于 OceanBase seekdb 与 PowerContext 构建</span>
+    <a href="https://github.com/chaizedong73-arch/PowerContext-bigheart-2026" target="_blank" rel="noopener">代码仓库</a>
+    <span class="foot-badge">Build with Qoder · OceanBase 2026</span>
+  </footer>
+
+  <div id="techTip" class="tech-tip hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

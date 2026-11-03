@@ -54,9 +54,13 @@
 
 ## 5. 执行记录（阶段 5 回填）
 
+运行环境：WSL2 Ubuntu，pyseekdb 1.4.0.post1（嵌入式，`SEEKDB_PATH=/home/chaizedong/recallloop-data/seekdb`，非 /mnt/c）；PowerContext Server 1.2.0（`http://127.0.0.1:8000`）；应用 uvicorn `127.0.0.1:8100`；scope `scp_4y5bypa0y6njp369ykn7btggvt`；嵌入器 local（384 维确定性哈希，无 API Key）。
+
 | 编号 | 执行时间 | 结果 | 证据文件 |
 | --- | --- | --- | --- |
-| V1 | 待填 | 待填 | 待填 |
-| V2 | 待填 | 待填 | 待填 |
-| V3 | 待填 | 待填 | 待填 |
-| V4 | 待填 | 待填 | 待填 |
+| V1 | 2026-11-04 04:56 (+0800) | 通过：导入 `os-basics.md`(11 块) + `study-notes.md`(5 块)，`GET /api/documents` 返回两文件及块数；嵌入式 seekdb 数据目录已生成 | `data/seekdb/`（WSL 原生）；`GET /api/documents` 响应 |
+| V2 | 2026-11-04 05:00:23 (+0800) | 通过：提问「seekdb 和 PowerContext 在本项目中如何分工？」Top-5 首卡命中《两组件分工》(score 0.4061 = vector 0.2325 + keyword 0.6667)，全部带 `source: os-basics.md`；来源过滤后结果全来自该文件 | `data/retrieval_log.jsonl`（含 vector/keyword 信号） |
+| V3 | 2026-11-04 05:00 (+0800) | 通过：生成 5 卡自评 2 会/2 不会/1 模糊（正确率 40%）；`memory_log.jsonl` 记 3 条 `/v1/memory/remember` + 5 条 `/v1/sources/content`；`curl /v1/memory/search {"query":"薄弱"}` 返回 3 条命中 | `data/reviews.json`；`data/memory_log.jsonl` |
+| V4 | 2026-11-04 05:00:30 (+0800) | 通过：停止并重启应用进程（PowerContext 保持运行）后，进度页 `/v1/context/prepare` 返回 `status:"ready"`(1288 bytes)，今日清单以薄弱来源 `os-basics.md` 优先；对照组全新 scope 返回 `status:"empty"`（首次使用） | `data/memory_log.jsonl`（context/prepare ready）；重启前后进度页 |
+
+> 回归补充：并发压测 16 路并行请求（ask+documents+plan）全部返回正确非空数据——已修复嵌入式 seekdb 客户端在 uvicorn 线程池下的线程安全问题（`store.py` 全局 `threading.RLock`）。机械挖空出题经两轮优化，优先挖数字/英文专名（如 OceanBase、seekdb），冷启动后单次出题 0.17s。
