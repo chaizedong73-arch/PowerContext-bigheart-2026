@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>端侧知识库 · 浏览器本地向量化 × seekdb 混合检索</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <h1>端侧 AI 知识库 <span class="sub">浏览器本地向量化 + seekdb 混合检索</span></h1>
+    <div class="badges">
+      <span id="backend-badge" class="badge">后端：检测中…</span>
+      <span id="dtype-badge" class="badge">精度：—</span>
+      <span id="seekdb-badge" class="badge">seekdb：连接中…</span>
+      <span id="model-badge" class="badge">模型：未加载</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 模型加载 -->
+    <section id="section-model" class="card">
+      <h2>1. 本地模型加载</h2>
+      <p class="hint">模型 Xenova/all-MiniLM-L6-v2（ONNX）从模型仓库下载到浏览器后，全部推理在本地设备执行，无云端推理 API。</p>
+      <div class="row">
+        <label>推理后端
+          <select id="device-select">
+            <option value="auto">自动（WebGPU 优先）</option>
+            <option value="webgpu">WebGPU</option>
+            <option value="wasm">WASM</option>
+          </select>
+        </label>
+        <label>量化精度
+          <select id="dtype-select">
+            <option value="auto">自动（WebGPU→fp16 / WASM→q8）</option>
+            <option value="fp32">fp32（量化前基线）</option>
+            <option value="fp16">fp16</option>
+            <option value="q8">q8（INT8）</option>
+          </select>
+        </label>
+        <button id="btn-load" class="primary">加载模型</button>
+      </div>
+      <div class="progress-wrap"><div id="model-progress" class="progress-bar"></div></div>
+      <div id="model-status" class="status"></div>
+    </section>
+
+    <!-- 集合管理 -->
+    <section id="section-collections" class="card">
+      <h2>2. 知识库集合（会话状态）</h2>
+      <div class="row">
+        <select id="collection-select"></select>
+        <input id="new-collection-name" type="text" placeholder="新集合名称" />
+        <button id="btn-create-collection">创建</button>
+        <button id="btn-delete-collection" class="danger">删除当前</button>
+        <button id="btn-refresh-collections">刷新</button>
+      </div>
+      <div id="collection-status" class="status"></div>
+    </section>
+
+    <!-- 语料导入 -->
+    <section id="section-import" class="card">
+      <h2>3. 导入语料（浏览器本地向量化 → 写入 seekdb）</h2>
+      <p class="hint">每段以空行分隔为一个文档；也可上传 .txt / .jsonl（jsonl 每行 {"title","text"}）。</p>
+      <textarea id="import-text" rows="6" placeholder="在此粘贴文本，空行分段…"></textarea>
+      <div class="row">
+        <input id="import-file" type="file" accept=".txt,.jsonl,.json" />
+        <button id="btn-import-sample">载入示例语料（48 篇）</button>
+        <button id="btn-import" class="primary">开始导入</button>
+        <label>批大小 <input id="batch-size" type="number" value="32" min="1" max="128" class="num" /></label>
+      </div>
+      <div class="progress-wrap"><div id="import-progress" class="progress-bar"></div></div>
+      <div id="import-status" class="status"></div>
+    </section>
+
+    <!-- 检索 -->
+    <section id="section-search" class="card">
+      <h2>4. 混合检索（seekdb 内部完成全文 + 向量 RRF 融合）</h2>
+      <div class="row">
+        <input id="query-input" type="text" placeholder="输入查询…" style="flex:1" />
+        <label>TopK <input id="topk-input" type="number" value="10" min="1" max="50" class="num" /></label>
+        <button id="btn-search" class="primary">检索</button>
+      </div>
+      <div id="search-timing" class="status"></div>
+      <div id="results"></div>
+    </section>
+
+    <!-- 性能数据 -->
+    <section id="section-perf" class="card">
+      <h2>5. 性能计时（本次浏览器会话实测）</h2>
+      <div class="row">
+        <button id="btn-export-perf">导出计时 JSON</button>
+        <button id="btn-clear-perf" class="danger">清空计时</button>
+      </div>
+      <table id="perf-table">
+        <thead>
+          <tr><th>时间</th><th>后端</th><th>精度</th><th>阶段</th><th>耗时 (ms)</th><th>规模</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    <p>2026 OceanBase 大赛 · 阶跃星辰赛题 · 端侧推理（Transformers.js / ONNX Runtime Web）+ seekdb 混合检索</p>
+  </footer>
+
+  <script type="module" src="./app.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+data/
+*.log
+.perf-raw/
+
+# 模型权重：仓库自带 fp16 / q8；fp32 基线(86MB)与未用 wasm flavor 不入库，用 scripts/download-models.sh 补齐
+public/vendor/models/**/onnx/model.onnx
+public/vendor/transformers/ort-wasm-simd-threaded.jspi.*
+public/vendor/transformers/ort-wasm-simd-threaded.mjs
+public/vendor/transformers/ort-wasm-simd-threaded.wasm

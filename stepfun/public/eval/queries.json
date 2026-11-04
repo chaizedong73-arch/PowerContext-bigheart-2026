@@ -1,0 +1,18 @@
+{
+  "queries": [
+    {"id": "q1", "query": "how does int8 quantization shrink model files", "relevant": ["doc-0005"]},
+    {"id": "q2", "query": "combine keyword and semantic search into one ranking", "relevant": ["doc-0012", "doc-0013", "doc-0028"]},
+    {"id": "q3", "query": "when are newly added documents searchable after ingestion", "relevant": ["doc-0015"]},
+    {"id": "q4", "query": "run model inference on the gpu inside the browser", "relevant": ["doc-0017", "doc-0020"]},
+    {"id": "q5", "query": "cpu fallback when webgpu is not available", "relevant": ["doc-0018", "doc-0019"]},
+    {"id": "q6", "query": "persist downloaded model weights across sessions", "relevant": ["doc-0021"]},
+    {"id": "q7", "query": "bm25 term frequency inverse document frequency scoring", "relevant": ["doc-0026", "doc-0014"]},
+    {"id": "q8", "query": "reciprocal rank fusion constant k formula", "relevant": ["doc-0013", "doc-0012"]},
+    {"id": "q9", "query": "split long documents into chunks before embedding", "relevant": ["doc-0029"]},
+    {"id": "q10", "query": "distributed database consensus with paxos replicas", "relevant": ["doc-0035", "doc-0036"]},
+    {"id": "q11", "query": "embedded database running inside the application process", "relevant": ["doc-0037"]},
+    {"id": "q12", "query": "search my notes by meaning instead of keywords", "relevant": ["doc-0047", "doc-0048"]},
+    {"id": "q13", "query": "background thread so embedding does not freeze the ui", "relevant": ["doc-0022"]},
+    {"id": "q14", "query": "sentence transformer with 384 dimensional vectors", "relevant": ["doc-0004", "doc-0003"]}
+  ]
+}
