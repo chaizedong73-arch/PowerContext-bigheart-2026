@@ -1,0 +1,6 @@
+# 午夜档案馆 · 配套检索后端（运行在 Linux x86_64，pyseekdb 嵌入式模式）
+# 复用仓库既有环境即可：~/recallloop-venv 已包含以下全部依赖
+fastapi>=0.115
+uvicorn>=0.30
+pyseekdb>=1.4.0            # 嵌入式 seekdb（wheel 仅 Linux x86_64 / macOS）
+sentence-transformers>=3.0 # 本地 384 维多语 embedding；缺失时自动降级为确定性哈希向量

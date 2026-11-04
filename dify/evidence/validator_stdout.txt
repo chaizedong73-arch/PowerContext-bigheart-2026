@@ -1,0 +1,71 @@
+nodes=18 edges=18
+  start          start                派单台
+  intent_llm     llm                  意图与关键词抽取
+  intent_code    code                 解析分类结果
+  req_code       code                 组装请求体
+  scope_http     http-request         建立/复用工号档案袋
+  scope_code     code                 取回 scope_id
+  memory_http    http-request         读取玩家记忆
+  memory_code    code                 解析记忆条目
+  route          if-else              派单还是行动
+  scene_http     http-request         取场景档案包(seekdb)
+  search_http    http-request         检索相关档案(seekdb)
+  agg_body       variable-aggregator  档案响应聚合
+  archive_code   code                 拼装档案块
+  host_llm       llm                  怪谈主持人（裁决+叙述）
+  host_code      code                 裁决校验与记忆文案
+  state_assign   assigner             更新玩家状态
+  remember_http  http-request         写回玩家记忆
+  reply          answer               回复玩家
+distinct variable references = 27
+scope_code -> {"scope_id": "scp_55ts13y6r9teh26gz7bara3xgy", "scope_state": "created_or_reused", "prepare_body": "{\"scope_id\": \"scp_55ts13y6r9teh26gz7bara3xgy\", \"query\": \"A-1101 违规 结局 偏好 电梯,对讲机\", \"max_bytes\": 6000}"}
+memory_code -> count= 2
+- 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 2 轮：解锁封存规则 RULE-ELV-04
+- 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 1 轮：玩家打算按下 13 层；违反 RULE-ELV-02
+
+=== archive_code[scene] cite: 4 条规则可读｜封存 2 条
+codes_csv=RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03
+locked_csv=RULE-RAD-05,RULE-RAD-06
+# 委托：礁石村的深夜电台（这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。）
+## 场景正文：礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。
+## 主持口吻：主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。
+## 难度 2｜危险 3
+## 可引用规则（只有这些编号是有效的裁决依据）
+- RULE-RAD-01《先旋到零，再决定听不听》：[RULE-RAD-01] 先旋到零，再决定听不听｜收音机自己响起时，先把音量旋钮逆时针旋到底再决定听不听。若旋钮在“1”或以上而你听见自己的名字，必须立刻转到别的频率，哪怕只剩噪音。留在原频率等于回答“我在”。｜关键词：音量,换台,名字
+- RULE-RAD-02《三秒空白里不许出声》：[RULE-RAD-02] 三秒空白里不许出声｜女声报完歌名会留三秒空白。空白里你出声哼了哪个音，第二天她就点你的歌。被点歌的人当晚不能再听电台，且必须在天亮前把收音机搬到别的房间。｜关键词：哼唱,空白,点歌
+- RULE-RAD-03《别数浪》：[RULE-RAD-03] 别数浪｜夜里不许数浪声。若你已经数了，数到第7下后出现第8下且间隔比前面短，立刻上床用被子蒙头，直到听见鸡叫；继续数下去的人会听见她说“还差几个”，而那句话说的是你。｜关键词：潮汐,计数,蒙头
+- RULE-RAD-04《光脚开门，倒着回床》：[RULE-RAD-04] 光脚开门，倒着回床｜老板收走拖鞋之后，无论谁敲门都光脚开门，别穿任何鞋。若地上出现别人的湿脚印一直通向门口，不要顺着它走出去，倒着走回床边——它只认朝外
+
+=== archive_code[search] cite: 本轮命中 6 条：RULE-ELV-02、ITEM-ELV-01、NPC-ELV-01、OMEN-ELV-01、RULE-ELV-05、END-ELV-01
+codes_csv=RULE-ELV-02,ITEM-ELV-01,NPC-ELV-01,OMEN-ELV-01,RULE-ELV-05,END-ELV-01
+locked_csv=
+# 本轮档案检索结果（seekdb 三路混合命中 6 条）
+## 可引用的规则
+- RULE-ELV-02《不许背对门》：[RULE-ELV-02] 不许背对门｜进轿厢先按楼层、后转身，全程面对门。四角不锈钢反光板里若看见自己身后多出一个人影，不许回头，按最近一层按钮，等门开了走出去。回头即算与它对视，判定为失败。｜关键词：轿厢,反光,姿态
+- RULE-ELV-05《被困时的姿势》：[RULE-ELV-05] 被困时的姿势｜电梯在12层停靠超过15秒且门不开时，用后背抵住轿厢后壁、双手抱头，直到听见“叮”。期间不许拍门、不许用手机手电照门缝、不许扒门。你发出的每一声敲击都会被当成有人在里面。｜关键词：停靠,等待,手光
+
+## 可引用的预兆
+- OMEN-ELV-01《出风口的甜味变浓》：[OMEN-ELV-01] 出风口的甜味变浓｜轿厢空调出风口的灰尘甜味突然变浓，同时温度降下来，你裸露的手臂起鸡皮。这是反光板里即将多出一个人影的征兆，预警 RULE-ELV-02：出现后立刻把身体转向门、不要动脖子。｜关键词：气味,温度
+
+## 可引用的道具
+- ITEM-ELV-01《背面贴锡纸的工牌》：[ITEM-ELV-01] 背面贴锡纸的工牌｜旧工牌，背面被人用胶带贴了一层口香糖锡纸，边缘已磨得起毛。用途：在12层刷卡打开东侧楼梯间门——那是唯一能通往13层的门。锡纸面还能替你挡一次：举到反光板前，板里那个多余的人影会先看见它而不是你，对应 RULE-ELV-02 的一次免回头。｜关键词：门禁,反光,钥匙
+
+## 可引用的NPC
+- NPC-ELV-01《夜班保安老周》：[NPC-ELV-01] 夜班保安老周｜五十多岁，制服拉链拉到下巴，说话带浓重本地口音，句尾爱加“吧”。他会明确告诉你电梯检修、必须12层下梯（RULE-ELV-01），也会提醒你反光板别回头（RULE-ELV-02）。他绝口不提那段楼梯有几级——那得你自己数。他从不在夜里进轿厢，所以他在门内还是门外，是判断 RULE-ELV-04 的活证据。｜关键词：保安,口音,可信
+
+## 可引用的结局
+- END-EL
+
+=== host_code[违规+幻觉编号] -> {"narration": "电梯在13层停住了。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01；解锁封存规则 RULE-RAD-05；达成结局 END-RAD-01；疑似触碰封存 RULE-RAD-05\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "violation", "mem_text": "工号 A-1101 在《礁石村
+
+=== host_code[仅解锁封存] -> {"narration": "你把工牌举到反光板前。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"unlock\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；解锁封存规则 RULE-RAD-05\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "unlock", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；解锁封存规则 RULE-RAD-05", "violations_next": "RULE-E
+
+=== host_code[空返回] -> {"narration": "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"progress\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "progress", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则", "violations_next": "RULE-ELV-01", "en
+
+=== host_code[逗号串而非数组] -> {"narration": "你听见背后有呼吸。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "violation", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01", 
+
+round-trip vs cloud export: same 18 edges, same 27 variable references, same node titles
+
+============================================================
+
+0 errors, 0 warnings

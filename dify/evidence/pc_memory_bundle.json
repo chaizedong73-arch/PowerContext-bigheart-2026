@@ -1,0 +1,54 @@
+{
+  "scope_id": "scp_55ts13y6r9teh26gz7bara3xgy",
+  "base_url": "http://127.0.0.1:8000",
+  "query": "违规 结局 偏好",
+  "entries": {
+    "memory": {
+      "family": "memory",
+      "artifact_id": "memory",
+      "revision": 2
+    },
+    "entries": [
+      {
+        "citation": {
+          "memory_ref": {
+            "family": "memory",
+            "artifact_id": "memory",
+            "revision": 2
+          },
+          "entry_id": "mem_ent_16a2a59599394badbc538eca4695ec9e",
+          "entry_version_id": "mem_ver_bc4b15f03cba493fa032ffaee5467dc1"
+        },
+        "version": 1,
+        "kind": "violation",
+        "text": "工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 1 轮：玩家打算按下 13 层；违反 RULE-ELV-02",
+        "state": "active",
+        "source_refs": [],
+        "artifact_refs": []
+      },
+      {
+        "citation": {
+          "memory_ref": {
+            "family": "memory",
+            "artifact_id": "memory",
+            "revision": 2
+          },
+          "entry_id": "mem_ent_74ba1eb268884a91920583570b09ac9e",
+          "entry_version_id": "mem_ver_2700f7f00b1c4b5fa87bdee4ed4ebadf"
+        },
+        "version": 1,
+        "kind": "unlock",
+        "text": "工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 2 轮：解锁封存规则 RULE-ELV-04",
+        "state": "active",
+        "source_refs": [],
+        "artifact_refs": []
+      }
+    ]
+  },
+  "prepared": {
+    "schema": "powercontext.prepared-context.v1",
+    "status": "empty",
+    "content": null,
+    "content_bytes": 0
+  }
+}

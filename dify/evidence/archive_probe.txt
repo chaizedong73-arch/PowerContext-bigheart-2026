@@ -1,0 +1,70 @@
+《午夜档案馆》后端探针留档：访问控制 + 封存过滤 + 解锁通道
+==================================================================
+说明：
+  * 主机名用占位符 <ARCHIVE_HOST>（cloudflared quick tunnel 的随机域名，每次重启都会变）。
+  * X-Archive-Token 用的是 .env.example 里的占位值 change-me-local-dev，不是真实凭据。
+  * 时间：2026-11-04，后端 = 本目录 archive/（pyseekdb 1.4.0.post1 嵌入式，5 场景 / 90 条目）。
+  * 每个请求都带 kinds=rule + scene_id=scn_seaside_radio，因此是**纯结构化过滤**，
+    只有 seekdb 真的执行了 where 才可能得到下面的结果。
+
+------------------------------------------------------------------
+1. 访问控制（401 才算生效）
+------------------------------------------------------------------
+$ curl -o /dev/null -w '%{http_code}' -X POST https://<ARCHIVE_HOST>/archive/search \
+      -H 'Content-Type: application/json' --data-binary @q.json
+no-token  -> 401
+
+$ curl -o /dev/null -w '%{http_code}' -X POST https://<ARCHIVE_HOST>/archive/search \
+      -H 'X-Archive-Token: wrong' -H 'Content-Type: application/json' --data-binary @q.json
+bad-token -> 401
+
+$ curl -X POST https://<ARCHIVE_HOST>/archive/search \
+      -H 'X-Archive-Token: change-me-local-dev' --data-binary @q.json
+ok-token  -> 200
+# GET /archive/health 不需要令牌（用于探活），写读接口全部要令牌。
+
+------------------------------------------------------------------
+2. 封存规则默认不下发（未解锁）
+------------------------------------------------------------------
+q.json = {"query":"收音机 声音 规则","scene_id":"scn_seaside_radio",
+          "kinds_csv":"rule","top_k":20,"revealed_csv":""}
+
+hits(4) = RULE-RAD-01, RULE-RAD-02, RULE-RAD-03, RULE-RAD-04
+          ← 该场景实有 6 条规则，RULE-RAD-05 / RULE-RAD-06 被挡在外面
+matched_by 每条 = ["fulltext","fused","vector"]   ← 三路都命中，RRF 融合
+
+响应里的 retrieval 诊断（证明 seekdb 确实跑了，而不是硬编码返回）：
+  fused   seekdb.hybrid_search(rank=rrf)            → [RAD-01,02,03,05,04,06]
+  vector  seekdb.query(HNSW cosine)                 → [RAD-01,02,03,05,04,06]
+  fulltext seekdb.get(where_document=$contains) 关键词「收音机」→ [RAD-02, RAD-01]
+
+注意：诊断通道列出 6 条（含封存），下发给工作流的 hits 只有 4 条。
+封存是在 API 层 _unlock_filter 兑现的（因为「sealed=false 或 code∈已解锁」没法写成
+单个 where），且 DSL 的「拼装档案块」节点只把通道渲染成**条数**，不渲染编号或原文，
+所以主持人拿不到被封存条文的任何一个字。tools/validate_dsl.py 对此有断言。
+
+------------------------------------------------------------------
+3. 解锁后同一条才能被引用（revealed_csv 通道）
+------------------------------------------------------------------
+q2.json = 同上，但 "revealed_csv":"RULE-RAD-05"
+
+hits(5) = RULE-RAD-01, RULE-RAD-02, RULE-RAD-03, RULE-RAD-05, RULE-RAD-04
+          ← RULE-RAD-05 进入可引用集合；RULE-RAD-06 仍然封着
+这就是「解锁是玩家的战利品」的实现路径：conversation.revealed 由 host_code 在玩家
+真的用了档案里写过「可解锁」的道具/NPC 线索时才追加，再作为 revealed_csv 回传后端。
+
+------------------------------------------------------------------
+4. scene_pack 的封存清单不含标题（防从标题反推条文）
+------------------------------------------------------------------
+$ curl -X POST https://<ARCHIVE_HOST>/archive/scene_pack \
+      -H 'X-Archive-Token: change-me-local-dev' \
+      --data-binary '{"taste":"声音","scene_id":"scn_seaside_radio","revealed_csv":"","difficulty":5}'
+
+sealed_locked = [{"code":"RULE-RAD-05","danger":4,"state":"sealed"},
+                 {"code":"RULE-RAD-06","danger":4,"state":"sealed"}]
+pack.rule     = RULE-RAD-01, RULE-RAD-02, RULE-RAD-03, RULE-RAD-04
+retrieval.structured_filters = {"seekdb_where":{"scene_id":"scn_seaside_radio","difficulty_max":5},
+                                "sealed_gate":"API 层 _unlock_filter：…"}
+
+档案块里渲染出来的一行是：
+  ## 封存中（条文与标题都没有下发，只有编号与危险度，禁止推测内容）：RULE-RAD-05（危险4）；RULE-RAD-06（危险4）

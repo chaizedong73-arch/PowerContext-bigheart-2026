@@ -1,0 +1,6 @@
+.env
+.seeded
+__pycache__/
+*.pyc
+*.log
+tunnel.log

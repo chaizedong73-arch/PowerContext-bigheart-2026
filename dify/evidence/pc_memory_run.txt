@@ -1,0 +1,25 @@
+=== 1. ensure with the same 工号 the DSL used (parity check)
+[pc] base=http://127.0.0.1:8000
+{
+  "player_id": "A-VALIDATE-1",
+  "scope_id": "scp_55ts13y6r9teh26gz7bara3xgy"
+}
+=== 1b. scope_id captured from the DSL-shaped request
+"scope_id":"scp_55ts13y6r9teh26gz7bara3xgy"
+=== 2. two messy spellings of the same 工号 must reuse ONE scope (idempotency)
+[pc] base=http://127.0.0.1:8000
+{
+  "player_id": " A\"22/01 ",
+  "scope_id": "scp_6c3gae54c879p1abbj6sj301a9"
+}
+[pc] base=http://127.0.0.1:8000
+{
+  "player_id": "A22/01!",
+  "scope_id": "scp_6c3gae54c879p1abbj6sj301a9"
+}
+=== 3. seed a historical episode for a fresh player
+[pc] base=http://127.0.0.1:8000
+{
+  "player_id": "A-DEMO-7",
+  "scope_id": "scp_113hfmzk1acmszsn6rxrydebv2"
+}
