@@ -1,12 +1,12 @@
 {
-  "pack_id": "pack_8c7510231d",
-  "created_at": "2026-11-03T15:22:28+0800",
+  "pack_id": "pack_e304cb6ba2",
+  "created_at": "2026-11-04T15:24:43+0800",
   "task": "任务：按照当前有效规格实现读书清单的缺失功能。\n\n当前 `business/reading_list/reading_list.py` 只有 add_book 与 list_books，\n缺少规格 v1 要求的 rating 字段、filter_by_genre 与 export_csv。\n\n目标测试 `business/reading_list/tests/test_target_features.py` 当前失败。\n请以 seekdb 检索到的最新规格为准实现这三个能力，使目标测试全部通过，\n并保持回归测试 `business/reading_list/tests/test_regression.py` 全部通过。",
   "spec_sources": [
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_01_8a68390b",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "领域模型",
       "distance": 0.250703647774674,
@@ -15,7 +15,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_05_bbadfd59",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "export_csv(books, path)",
       "distance": 0.3650606870651245,
@@ -24,7 +24,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_03_87c631c2",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "add_book(books, title, author, genre, rating=None)",
       "distance": 0.41900571697984335,
@@ -33,7 +33,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_04_f8e2372e",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "filter_by_genre(books, genre)",
       "distance": 0.44408154487609863,
@@ -42,7 +42,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_00_45991c12",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "读书清单（Reading List）规格 v1",
       "distance": 0.538498131126276,
@@ -51,7 +51,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v1_02_6bc97d16",
-      "source": "reading_list_spec_v1",
+      "source": "reading_list_spec",
       "version": 1,
       "heading": "功能要求",
       "distance": 0.8518486144362218,

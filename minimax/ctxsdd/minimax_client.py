@@ -96,7 +96,7 @@ class MiniMaxClient:
     def _log(self, request_body, content, reasoning, latency_ms, base_resp, usage=None):
         record = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "endpoint": API_URL,
+            "endpoint": self.url,
             "model": request_body.get("model"),
             "messages": request_body.get("messages"),
             "response_content": content,

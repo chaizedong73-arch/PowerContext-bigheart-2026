@@ -4,7 +4,7 @@
 
 本模块解决软件持续演进中的三个上下文难题：
 
-1. **规有所依**：任务执行时只使用"当前有效"的规格版本。规格以版本化方式入库（`ctxsdd_specs`，chunk 元数据带 `version`），检索后按 source 过滤到最新版本——规格 v2 重新导入后，同一 source 的 v1 块自动被过滤，上下文与模型输出均使用 v2 内容。
+1. **规有所依**：任务执行时只使用"当前有效"的规格版本。规格以版本化方式入库（`ctxsdd_specs`，chunk 元数据带 `version`），检索后按 source 过滤到最新版本——规格 v2 重新导入后，同一 source 的 v1 块自动被过滤，上下文与模型输出均使用 v2 内容。source 取文件名主干并**去掉 `_vN` 版本后缀**（`reading_list_spec_v1/v2` 统一归并为 `reading_list_spec`），保证同一规格的多个版本归并同一来源；检索过滤前也会对已入库的 source 做同样归一化，历史数据同样能正确合并。
 2. **来源可溯**：上下文包（context pack）中每条规格/代码/测试都带来源标注（seekdb 集合、chunk_id、文件路径、版本号），写入 `docs/runs/context_pack.json`。
 3. **状态可复用**：所有命令是独立进程，共享 `.ctxsdd/powercontext_state.json`（并镜像到 `docs/runs/`）。任务记录、规格版本、代码索引在模块重启后仍可读取，用于后续任务处理。
 

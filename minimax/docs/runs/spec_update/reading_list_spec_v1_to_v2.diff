@@ -1,0 +1,61 @@
+--- a/reading_list_spec_v1.md
++++ b/reading_list_spec_v1.md
+@@ -1,25 +0,0 @@
+-# 读书清单（Reading List）规格 v1
+-
+-## 领域模型
+-
+-- 书目使用字典表示，字段：`title`（字符串）、`author`（字符串）、`genre`（字符串）。
+-- `rating` 字段：0-5 的整数，缺省值为 **3**。
+-- 模块文件：`business/reading_list/reading_list.py`。
+-
+-## 功能要求
+-
+-### add_book(books, title, author, genre, rating=None)
+-
+-- 向 `books` 追加一条书目并返回新书目。
+-- 返回的书目必须包含 `rating` 字段；`rating` 未提供时取缺省值 3。
+-
+-### filter_by_genre(books, genre)
+-
+-- 按 `genre` 筛选书目，比较不区分大小写。
+-- 结果保持原有顺序，返回新列表。
+-
+-### export_csv(books, path)
+-
+-- 写出 UTF-8 编码的 CSV 文件。
+-- 表头固定为：`title,author,genre,rating`。
+-- v1 要求：数据行顺序与 `books` 的插入顺序一致。
+
+--- a/reading_list_spec_v2.md
++++ b/reading_list_spec_v2.md
+@@ -0,0 +1,29 @@
++# 读书清单（Reading List）规格 v2
++
++> v2 变更（相对 v1）：1) `export_csv` 数据行排序要求变更；2) `add_book` 增加 rating 取值校验。
++
++## 领域模型
++
++- 书目使用字典表示，字段：`title`（字符串）、`author`（字符串）、`genre`（字符串）。
++- `rating` 字段：0-5 的整数，缺省值为 **3**。
++- **（v2 变更）** `add_book` 必须校验 `rating`：显式传入的 `rating` 不是 0-5 范围内的整数时抛出 `ValueError`；`rating=0` 与 `rating=5` 合法。
++- 模块文件：`business/reading_list/reading_list.py`。
++
++## 功能要求
++
++### add_book(books, title, author, genre, rating=None)
++
++- 向 `books` 追加一条书目并返回新书目。
++- 返回的书目必须包含 `rating` 字段；`rating` 未提供时取缺省值 3。
++- **（v2 变更）** 校验规则见领域模型一节。
++
++### filter_by_genre(books, genre)
++
++- 按 `genre` 筛选书目，比较不区分大小写。
++- 结果保持原有顺序，返回新列表。
++
++### export_csv(books, path)
++
++- 写出 UTF-8 编码的 CSV 文件。
++- 表头固定为：`title,author,genre,rating`。
++- **（v2 变更）** 数据行必须按 `title` 不区分大小写的字母序排序，不再使用插入顺序。

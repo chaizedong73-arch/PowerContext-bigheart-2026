@@ -5,11 +5,9 @@ import csv
 
 def add_book(books, title, author, genre, rating=None):
     """添加一本书并返回新书目。"""
-    if rating is None:
-        rating = 3
-    elif (
-        not isinstance(rating, int)
-        or isinstance(rating, bool)
+    if rating is not None and (
+        isinstance(rating, bool)
+        or not isinstance(rating, int)
         or not 0 <= rating <= 5
     ):
         raise ValueError("rating must be an integer between 0 and 5")
@@ -18,7 +16,7 @@ def add_book(books, title, author, genre, rating=None):
         "title": title,
         "author": author,
         "genre": genre,
-        "rating": rating,
+        "rating": 3 if rating is None else rating,
     }
     books.append(book)
     return dict(book)
@@ -30,27 +28,17 @@ def list_books(books):
 
 
 def filter_by_genre(books, genre):
-    """按类型筛选书目，比较时不区分大小写。"""
+    """按类型筛选书目，比较不区分大小写并保持原有顺序。"""
     target_genre = genre.casefold()
-    return [
-        book
-        for book in books
-        if book["genre"].casefold() == target_genre
-    ]
+    return [book for book in books if book["genre"].casefold() == target_genre]
 
 
 def export_csv(books, path):
-    """按标题不区分大小写的字母序导出 UTF-8 编码的 CSV 文件。"""
-    sorted_books = sorted(books, key=lambda book: book["title"].lower())
+    """将书目按标题不区分大小写排序后导出为 UTF-8 编码的 CSV 文件。"""
     with open(path, "w", encoding="utf-8", newline="") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(("title", "author", "genre", "rating"))
-        for book in sorted_books:
+        for book in sorted(books, key=lambda item: item["title"].lower()):
             writer.writerow(
-                (
-                    book["title"],
-                    book["author"],
-                    book["genre"],
-                    book.get("rating", 3),
-                )
+                (book["title"], book["author"], book["genre"], book["rating"])
             )

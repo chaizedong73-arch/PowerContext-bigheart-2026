@@ -10,6 +10,7 @@
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -37,6 +38,35 @@ TESTS_DIR = "business/reading_list/tests"
 
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+# 规格文件名的版本后缀，如 reading_list_spec_v1 / -v2 / v2
+_VERSION_SUFFIX_RE = re.compile(r"[_\s-]*v(\d+)$", re.IGNORECASE)
+
+
+def _strip_version_suffix(stem: str) -> str:
+    return _VERSION_SUFFIX_RE.sub("", stem).strip("_- ") or stem
+
+
+def default_source(spec_path: Path) -> str:
+    """默认规格来源名：文件名主干去掉版本后缀。
+
+    reading_list_spec_v1.md 与 reading_list_spec_v2.md 的主干都归并到同一来源
+    reading_list_spec——这样"按来源取最新版本"才能过滤掉 v1 旧块；若直接用
+    原始词干当 source，v1/v2 会被当成两个不同来源，失效规格永远过滤不掉。
+    """
+    return _strip_version_suffix(spec_path.stem)
+
+
+def version_from_stem(stem: str):
+    """从文件名主干解析版本号（reading_list_spec_v2 -> 2），解析不出返回 None。"""
+    m = _VERSION_SUFFIX_RE.search(stem)
+    return int(m.group(1)) if m else None
+
+
+def normalize_source(name) -> str:
+    """归一化已入库的 source：携带版本后缀的旧来源名也归并到同一来源。"""
+    return _strip_version_suffix(name or "")
 
 
 class Env:
@@ -109,10 +139,10 @@ def cmd_import_spec(args) -> int:
     spec_path = (env.root / args.file).resolve()
     if not spec_path.exists():
         raise CtxsddError(f"规格文件不存在: {spec_path}")
-    source = args.source or spec_path.stem
+    source = args.source or default_source(spec_path)
     specs = state.data.setdefault("specs", {})
     latest = specs.get(source, {}).get("latest_version", 0)
-    version = args.version or latest + 1
+    version = args.version or version_from_stem(spec_path.stem) or latest + 1
 
     text = spec_path.read_text(encoding="utf-8")
     chunks = chunk_spec(text, source, version)
@@ -178,16 +208,18 @@ def cmd_run_task(args) -> int:
 
     # ---- 1. seekdb 检索：实际查询结果用于任务上下文 ----
     spec_hits = store.query("ctxsdd_specs", task_desc, n=8)
-    # 规格更新后：同一 source 只保留最新版本
+    # 规格更新后：同一 source 只保留最新版本（source 先归一化，
+    # 历史上以"文件名词干+版本"入库的旧数据也能正确归并过滤）
     latest_by_source = {}
     for h in spec_hits:
-        src = h["metadata"].get("source")
+        src = normalize_source(h["metadata"].get("source"))
         ver = h["metadata"].get("version", 0)
         latest_by_source[src] = max(latest_by_source.get(src, 0), ver)
     spec_hits_latest = [
         h
         for h in spec_hits
-        if h["metadata"].get("version") == latest_by_source.get(h["metadata"].get("source"))
+        if h["metadata"].get("version")
+        == latest_by_source.get(normalize_source(h["metadata"].get("source")))
     ]
     code_hits = store.query("ctxsdd_code", task_desc, n=4)
     test_hits = store.query("ctxsdd_tests", task_desc, n=4)
@@ -333,7 +365,7 @@ def build_parser() -> argparse.ArgumentParser:
     isp = sub.add_parser("import-spec", help="规格切块入库（版本化）")
     isp.add_argument("file", help="规格 Markdown 文件")
     isp.add_argument("--version", type=int, default=None)
-    isp.add_argument("--source", default=None, help="规格名（默认取文件名主干）")
+    isp.add_argument("--source", default=None, help="规格名（默认取文件名主干并去掉 _vN 版本后缀，使同规格各版本归并同一来源）")
     isp.set_defaults(func=cmd_import_spec)
 
     rt = sub.add_parser("run-task", help="检索上下文并调用 MiniMax 完成代码修改")

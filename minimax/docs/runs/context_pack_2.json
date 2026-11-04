@@ -1,12 +1,12 @@
 {
-  "pack_id": "pack_591345e700",
-  "created_at": "2026-11-03T15:23:31+0800",
+  "pack_id": "pack_5912b8994f",
+  "created_at": "2026-11-04T15:25:55+0800",
   "task": "任务：规格已更新到 v2，请按更新后的规格调整实现。\n\nv2 相对 v1 的变更：\n1. `export_csv` 数据行必须按 title 不区分大小写的字母序排序；\n2. `add_book` 必须校验显式传入的 rating 在 0-5 范围内（整数），否则抛出 ValueError。\n\n目标测试 `business/reading_list/tests/test_spec_update.py` 当前失败。\n请以 seekdb 检索到的最新规格（v2）为准修改实现，使目标测试全部通过，\n并保持 `test_target_features.py` 与 `test_regression.py` 等回归测试全部通过。",
   "spec_sources": [
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v2_00_e1a5a17b",
-      "source": "reading_list_spec_v2",
+      "source": "reading_list_spec",
       "version": 2,
       "heading": "读书清单（Reading List）规格 v2",
       "distance": 0.29795342683792114,
@@ -15,7 +15,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v2_01_992e86b2",
-      "source": "reading_list_spec_v2",
+      "source": "reading_list_spec",
       "version": 2,
       "heading": "领域模型",
       "distance": 0.3174301182457837,
@@ -24,7 +24,7 @@
     {
       "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v2_05_22ec5b02",
-      "source": "reading_list_spec_v2",
+      "source": "reading_list_spec",
       "version": 2,
       "heading": "export_csv(books, path)",
       "distance": 0.34108394384384155,
@@ -32,26 +32,8 @@
     },
     {
       "origin": "seekdb:ctxsdd_specs",
-      "chunk_id": "spec_v1_05_bbadfd59",
-      "source": "reading_list_spec_v1",
-      "version": 1,
-      "heading": "export_csv(books, path)",
-      "distance": 0.365744411945343,
-      "text": "### export_csv(books, path)\n\n- 写出 UTF-8 编码的 CSV 文件。\n- 表头固定为：`title,author,genre,rating`。\n- v1 要求：数据行顺序与 `books` 的插入顺序一致。"
-    },
-    {
-      "origin": "seekdb:ctxsdd_specs",
-      "chunk_id": "spec_v1_01_8a68390b",
-      "source": "reading_list_spec_v1",
-      "version": 1,
-      "heading": "领域模型",
-      "distance": 0.43065902177447113,
-      "text": "## 领域模型\n\n- 书目使用字典表示，字段：`title`（字符串）、`author`（字符串）、`genre`（字符串）。\n- `rating` 字段：0-5 的整数，缺省值为 **3**。\n- 模块文件：`business/reading_list/reading_list.py`。"
-    },
-    {
-      "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v2_03_a41e3e3e",
-      "source": "reading_list_spec_v2",
+      "source": "reading_list_spec",
       "version": 2,
       "heading": "add_book(books, title, author, genre, rating=None)",
       "distance": 0.5177364647388458,
@@ -59,17 +41,8 @@
     },
     {
       "origin": "seekdb:ctxsdd_specs",
-      "chunk_id": "spec_v1_03_87c631c2",
-      "source": "reading_list_spec_v1",
-      "version": 1,
-      "heading": "add_book(books, title, author, genre, rating=None)",
-      "distance": 0.5396421277309724,
-      "text": "### add_book(books, title, author, genre, rating=None)\n\n- 向 `books` 追加一条书目并返回新书目。\n- 返回的书目必须包含 `rating` 字段；`rating` 未提供时取缺省值 3。"
-    },
-    {
-      "origin": "seekdb:ctxsdd_specs",
       "chunk_id": "spec_v2_04_f8e2372e",
-      "source": "reading_list_spec_v2",
+      "source": "reading_list_spec",
       "version": 2,
       "heading": "filter_by_genre(books, genre)",
       "distance": 0.6112135946750641,
@@ -81,7 +54,7 @@
       "origin": "seekdb",
       "collection": "ctxsdd_code",
       "path": "business/reading_list/reading_list.py",
-      "content": "\"\"\"读书清单（reading list）领域模块。\"\"\"\n\nimport csv\n\n\ndef add_book(books, title, author, genre, rating=None):\n    \"\"\"添加一本书并返回新书目。\"\"\"\n    if rating is None:\n        rating = 3\n    book = {\n        \"title\": title,\n        \"author\": author,\n        \"genre\": genre,\n        \"rating\": rating,\n    }\n    books.append(book)\n    return dict(book)\n\n\ndef list_books(books):\n    \"\"\"返回书目的浅拷贝列表。\"\"\"\n    return [dict(b) for b in books]\n\n\ndef filter_by_genre(books, genre):\n    \"\"\"按类型筛选书目，比较时不区分大小写。\"\"\"\n    target_genre = genre.casefold()\n    return [\n        book\n        for book in books\n        if book[\"genre\"].casefold() == target_genre\n    ]\n\n\ndef export_csv(books, path):\n    \"\"\"将书目按插入顺序导出为 UTF-8 编码的 CSV 文件。\"\"\"\n    with open(path, \"w\", encoding=\"utf-8\", newline=\"\") as csv_file:\n        writer = csv.writer(csv_file)\n        writer.writerow((\"title\", \"author\", \"genre\", \"rating\"))\n        for book in books:\n            writer.writerow(\n                (\n                    book[\"title\"],\n                    book[\"author\"],\n                    book[\"genre\"],\n                    book.get(\"rating\", 3),\n                )\n            )\n"
+      "content": "\"\"\"读书清单（reading list）领域模块。\"\"\"\n\nimport csv\n\n\ndef add_book(books, title, author, genre, rating=None):\n    \"\"\"添加一本书并返回新书目。\"\"\"\n    book = {\n        \"title\": title,\n        \"author\": author,\n        \"genre\": genre,\n        \"rating\": 3 if rating is None else rating,\n    }\n    books.append(book)\n    return dict(book)\n\n\ndef list_books(books):\n    \"\"\"返回书目的浅拷贝列表。\"\"\"\n    return [dict(b) for b in books]\n\n\ndef filter_by_genre(books, genre):\n    \"\"\"按类型筛选书目，比较不区分大小写并保持原有顺序。\"\"\"\n    target_genre = genre.casefold()\n    return [book for book in books if book[\"genre\"].casefold() == target_genre]\n\n\ndef export_csv(books, path):\n    \"\"\"将书目按插入顺序导出为 UTF-8 编码的 CSV 文件。\"\"\"\n    with open(path, \"w\", encoding=\"utf-8\", newline=\"\") as csv_file:\n        writer = csv.writer(csv_file)\n        writer.writerow((\"title\", \"author\", \"genre\", \"rating\"))\n        for book in books:\n            writer.writerow(\n                (book[\"title\"], book[\"author\"], book[\"genre\"], book[\"rating\"])\n            )\n"
     }
   ],
   "test_sources": [
