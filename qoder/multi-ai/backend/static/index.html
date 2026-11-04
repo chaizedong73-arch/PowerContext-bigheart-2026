@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多AI协同 v2 · PowerContext + seekdb</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🕸️</span>
+      <div>
+        <h1>多AI协同 v2</h1>
+        <p class="tagline">跨 agent 检索 → 派工闭环 → 共享记忆 → 证据化交接（PowerContext + seekdb）</p>
+      </div>
+    </div>
+    <div class="status-pill" id="statusPill" title="后端连接状态">检测中…</div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="about" role="tab">关于</button>
+    <button class="tab" data-tab="search" role="tab">跨 agent 检索</button>
+    <button class="tab" data-tab="dispatch" role="tab">派工闭环</button>
+    <button class="tab" data-tab="memory" role="tab">共享记忆 · 交接</button>
+  </nav>
+
+  <div id="demoBanner" class="demo-banner hidden">
+    演示模式：后端未连接，使用<strong>真实运行快照</strong>（本机对 seekdb / PowerContext 实跑后裁剪内置）。按钮可点、流程可走通；完整实时功能见本地部署。
+  </div>
+
+  <main>
+    <!-- 关于 -->
+    <section class="panel active" id="panel-about">
+      <div class="hero">
+        <h2 class="hero-title">多AI协同底座 <span>v2</span></h2>
+        <p class="hero-sub">让不同 agent 快速找到彼此窗口里的环境与产出：一个父进程派工，各 agent 去<strong>资料库</strong>捞原始证据，父进程判质量、交叉核验、整合，再以<strong>可核验的证据</strong>交接给下一个 agent。</p>
+        <ul class="hero-lines">
+          <li>只读采集 DSH / WorkBuddy / Codex 的真实会话日志，凭据脱敏后归一为语料。</li>
+          <li>seekdb 三路混合检索（向量 + 关键词 + 结构化），每条命中带 <span class="mono">file:line</span> 引用；可按文件反查是哪个 agent 改的。</li>
+          <li>PowerContext 作跨 agent 共享记忆与原生交接：交接的每条结论都挂引用，接收方 <span class="mono">continue</span> 时服务端逐条核验证据是否可得。</li>
+        </ul>
+        <div class="hero-cta">
+          <button class="primary" data-goto="dispatch">体验派工闭环</button>
+          <button class="ghost btn-link" data-goto="search">跨 agent 检索</button>
+        </div>
+        <p class="hero-note">本页无需后端即可浏览；未连接后端时自动进入<strong>演示模式</strong>（内置真实运行快照）。</p>
+      </div>
+
+      <div class="card">
+        <h3>数据流</h3>
+        <div class="pipeline">
+          <div class="pipe-node"><div class="ic">📥</div><strong>Ingest（Node）</strong><p>只读采集 3 个 agent 的会话日志，脱敏 → 归一 JSONL 语料</p></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="ic">🔎</div><strong>seekdb</strong><p>切块建向量索引，三路混合检索，带 file:line 出处</p></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="ic">🧠</div><strong>PowerContext</strong><p>跨 agent 共享记忆（L1 状态层）+ 原生交接（L2）</p></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="ic">🎯</div><strong>派工闭环</strong><p>父进程拆任务、判质量、交叉核验、整合交接</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>解决的 v1 局限</h3>
+        <div class="grid-3">
+          <div class="mini"><div class="mini-ic">🧵</div><strong>无共享记忆</strong><p>各 agent 各记各的，没有共同真相源。v2 用 PowerContext 做跨 agent 账本。</p></div>
+          <div class="mini"><div class="mini-ic">🤝</div><strong>无跨 agent 交接</strong><p>换 agent 就断片。v2 用原生交接工件，结论挂引用、服务端核验证据。</p></div>
+          <div class="mini"><div class="mini-ic">🎯</div><strong>无派工调度</strong><p>没有父进程分派。v2 拆任务派给真实 agent，判质量不够就换策略重捞。</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>接入的 agent <span class="demo-tag" id="corpusTag">语料统计</span></h3>
+        <div class="agent-grid" id="agentGrid"></div>
+        <p class="hint" id="statsHint">统计来自 seekdb 集合 <span class="mono">multi_ai_corpus</span>。</p>
+      </div>
+
+      <div class="card">
+        <h3>真实运行快照 <span class="demo-tag">演示模式内置数据的界面渲染</span></h3>
+        <div class="shots">
+          <figure class="shot">
+            <figcaption>① 跨 agent 检索（seekdb 三路混合，带出处）</figcaption>
+            <div class="shot-body" id="shotSearch"></div>
+          </figure>
+          <figure class="shot">
+            <figcaption>② 派工闭环（判质量 + 换策略重捞）</figcaption>
+            <div class="shot-body" id="shotDispatch"></div>
+          </figure>
+          <figure class="shot">
+            <figcaption>③ 交接证据核验（PowerContext continue）</figcaption>
+            <div class="shot-body" id="shotHandoff"></div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 跨 agent 检索 -->
+    <section class="panel" id="panel-search">
+      <div class="panel-head">
+        <h2>跨 agent 检索</h2>
+        <span class="tech-badge" data-tech="seekdb：向量相似 + 关键词匹配 + 结构化(owner/kind/session)过滤，全量重排，返回带 file:line 出处的 Top-K">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <label>检索词<input id="qInput" type="text" placeholder="例如：多AI协同 会话检索 混合检索 seekdb" /></label>
+        <div class="filters">
+          <label>按 agent 过滤<select id="qOwner"><option value="">全部 agent</option><option value="dsh">dsh</option><option value="workbuddy">workbuddy</option><option value="codex">codex</option></select></label>
+          <label>按类型过滤<select id="qKind"><option value="">全部类型</option><option value="message">message 对话</option><option value="change">change 产出</option><option value="session">session 会话</option></select></label>
+          <label>Top-K<input id="qTopK" type="number" value="6" min="1" max="20" /></label>
+        </div>
+        <div class="row">
+          <button id="btnSearch" class="primary">检索</button>
+          <span id="searchMsg" class="msg"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>按文件反查 <span class="tech-badge" data-tech="store.find_by_file：把归一化路径匹配到 change 记录，回答“这个文件是哪个 agent、哪次会话改的”">ⓘ</span></h3>
+        <div class="row">
+          <label class="inline" style="flex:1">文件路径<input id="fileInput" type="text" placeholder="例如 项目主页.md 或绝对路径" /></label>
+          <button id="btnFindFile" class="ghost">反查</button>
+        </div>
+        <div id="fileResults" class="results" style="margin-top:10px"></div>
+      </div>
+      <div id="searchResults" class="results"></div>
+    </section>
+
+    <!-- 派工闭环 -->
+    <section class="panel" id="panel-dispatch">
+      <div class="panel-head">
+        <h2>派工闭环</h2>
+        <span class="tech-badge" data-tech="父进程：拆任务→选真实目标 agent→各自去 seekdb 捞证据→按 覆盖/权威 判质量→不够则换检索策略重捞（预算内）→跨 agent 一致性核验→整合写共享记忆→原生交接">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <label>总目标（父 AI 据此拆子任务并派工）<input id="goalInput" type="text" placeholder="例如：多AI协同 会话检索 混合检索 seekdb" /></label>
+        <div class="filters">
+          <label>派给几个 agent<input id="numAgents" type="number" value="2" min="1" max="3" /></label>
+          <label>模式<select id="dispMode"><option value="continue-original-session">续接原会话</option><option value="new-subsession">新开子会话</option></select></label>
+          <label>每任务最大轮次<input id="maxRounds" type="number" value="2" min="1" max="3" /></label>
+        </div>
+        <div class="row">
+          <button id="btnDispatch" class="primary">运行派工闭环</button>
+          <span id="dispatchMsg" class="msg"></span>
+        </div>
+        <p class="hint">闭环含多轮检索与 PowerContext 写入，实时运行约需数十秒；演示模式即时返回内置真实快照。</p>
+      </div>
+      <div id="dispatchOut"></div>
+    </section>
+
+    <!-- 共享记忆 · 交接 -->
+    <section class="panel" id="panel-memory">
+      <div class="panel-head">
+        <h2>共享记忆 · 交接</h2>
+        <span class="tech-badge" data-tech="PowerContext：memory/search 检索共享记忆；context/prepare 取回历史上下文；handoff/continue 读回交接并由服务端核验每条引用证据是否可得">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <h3>共享记忆状态 <span id="memStatus" class="chip">—</span></h3>
+        <div class="row">
+          <label class="inline" style="flex:1">检索记忆<input id="memQuery" type="text" placeholder="例如：派工结论 检索 决策" /></label>
+          <button id="btnMemSearch" class="primary">检索</button>
+        </div>
+        <ul id="memHits" class="weak-list" style="margin-top:10px"><li class="empty">尚未检索</li></ul>
+      </div>
+      <div class="card">
+        <h3>历史上下文（context/prepare）</h3>
+        <pre id="memContext" class="context-box">加载中…</pre>
+      </div>
+      <div class="card">
+        <h3>当前交接工件 <span id="hoRev" class="pill-rev">—</span> <button id="btnReloadHandoff" class="ghost small">刷新</button></h3>
+        <div id="handoffBody"><div class="loading">加载中…</div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>基于 OceanBase seekdb 与 PowerContext 构建</span>
+    <a href="https://github.com/chaizedong73-arch/PowerContext-bigheart-2026" target="_blank" rel="noopener">代码仓库</a>
+    <span class="foot-badge">Build with Qoder · OceanBase 2026</span>
+  </footer>
+
+  <div id="techTip" class="tech-tip hidden"></div>
+  <script src="demo-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

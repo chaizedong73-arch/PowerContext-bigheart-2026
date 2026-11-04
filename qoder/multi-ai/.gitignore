@@ -1,0 +1,8 @@
+# 真实聊天语料与缓存只留本机，绝不入仓库（含 redact 掩码后仍是用户私有对话）。
+ingest/out/
+# Python 运行产物
+__pycache__/
+*.pyc
+# 本地运行时数据（seekdb 默认在 WSL 原生 ~/multi-ai-data，不在仓库内；此处兜底）
+data/
+*.log
