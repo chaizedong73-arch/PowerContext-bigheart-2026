@@ -227,8 +227,12 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
     """Search a scoped Memory for at most ``limit`` distinct page citations.
 
     离线查询处理与重排：先以多组查询变体做 FTS 粗召（整题、逐句、带词形放宽的
-    关键词条、财报表头短语），RRF 加权融合后按报表主表页与邻页先验重排，返回
-    全部经过真实 Memory 搜索命中的页面引用。
+    关键词条、财报表头短语），RRF 加权融合后重排。多文档同池竞争时，先从问题
+    词与 document_id 的词段对应关系识别目标文档（名称形态不可读时再按问题显著
+    词在池内各文档页面文本中的包含率自校准兜底），并对该文档整体隔离加分；再在
+    目标文档内把命中财报表头 / 法务章节探测的页面按 RRF 顺序直接注入头部，使
+    几乎全数字、只命中少量变体的报表主表页不会被散文页挤出 top-N。返回全部
+    经过真实 Memory 搜索命中的页面引用。
     """
 
     if limit < 1 or not isinstance(question, str) or question.strip() == "":
@@ -244,14 +248,27 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
     if not fused:
         return ()
     groups = _triggered_groups(question)
+    target = _identify_document(fused, question)
+    if target is None:
+        target = _identify_document_by_text(fused, question)
+    legal = bool(_LEGAL_TERMS & set(_salient_terms(question)))
+    promoted = _promoted_keys(fused, target, groups, legal)
     rescored = []
     for rrf, hit in fused.values():
+        key = (hit.entry_id, hit.entry_version_id)
         bonus = 0.0
-        if groups:
+        if target is not None:
+            if _document_of_hit(hit) == target:
+                bonus += _DOC_ISOLATION_BONUS
+                if key in promoted:
+                    bonus += _PROMOTION_BONUS
+        else:
             head = (hit.text or "")[:_HEADER_WINDOW]
             for group in groups:
                 if _HEADER_PROBES[group].search(head):
                     bonus += _STATEMENT_BONUS
+            if legal and _LEGAL_PAGE_PROBE.search(hit.text or ""):
+                bonus += _STATEMENT_BONUS
         rescored.append([rrf + bonus, rrf, hit, bonus])
     rescored.sort(key=lambda item: (-item[0], -item[1], item[2].entry_id))
     await _apply_page_priors(memory, rescored, groups)
@@ -263,6 +280,13 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
 
 
 _STATEMENT_BONUS = 0.09
+_DOC_ISOLATION_BONUS = 1.0
+_PROMOTION_BONUS = 2.0
+_PROMOTION_SLOTS = 2
+_LEGAL_PROMOTION_SLOTS = 3
+# 参与注入的报表组: 主表页在各自 "consolidated ..." 报表短语查询上几乎总是
+# rank-1, 按该名次挑选注入页; segment 组的命中页多为散文注释页, 不注入.
+_PROMOTION_GROUPS = {"income", "balance", "cash"}
 _QUALITATIVE_BONUS = 0.02
 _QUALITATIVE_PAGE_WINDOW = 40
 _NEIGHBOR_BONUS = {1: 0.03, 2: 0.02}
@@ -299,8 +323,24 @@ _LEGAL_SYNONYMS = {
     "lawsuits": "legal proceedings",
     "litigation": "legal proceedings",
 }
+# 法务问题触发词与法务章节页探测: "Legal Proceedings." / "legal proceeding," 类
+# 章节标题或正文句式 (后随标点); 目录页 "Legal Proceedings 24" (数字结尾)、
+# 风险因子页 "regulatory proceedings" (无 legal 邻接) 与 "Litigation Reform"
+# (无标点紧跟) 都不会命中.
+_LEGAL_TERMS = {"legal", "lawsuits", "litigation", "battles", "proceedings"}
+_LEGAL_PAGE_PROBE = re.compile(r"legal proceedings?[.,;:]", re.I)
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
-_RRF_WEIGHTS = {"full": 3.0, "sentence": 2.0, "single": 1.0, "report": 2.0}
+_RRF_WEIGHTS = {"full": 3.0, "sentence": 2.0, "single": 1.0, "report": 6.0}
+# 页面文本自校准兜底 (_identify_document_by_text) 的判定条件: 目标文档池内页数
+# 下限、司名词包含率下限、其余文档包含率上限与最高值对次高值的主导倍数. 公司
+# 自身财报页几乎每页都含司名/司名词 (页眉页脚、业务描述), 他司文档极少提及,
+# 因此司名词呈 "近乎独占" (其余文档包含率接近 0) 或 "强主导" (达到次高的数倍)
+# 形态; 财报散文共有词 (costs/statements/business 等) 在各文档间分布紧密, 两个
+# 条件都会排除. 短司名缩写 (3m/amd) 与 2 字符数字母词单独放行.
+_TEXT_RATE_MIN = 0.4
+_TEXT_POOL_MIN = 6
+_TEXT_OTHER_RATE_MAX = 0.1
+_TEXT_DOMINANCE = 3.0
 
 
 def _term_variants(term: str, /) -> set[str]:
@@ -332,6 +372,8 @@ def _salient_terms(question: str, /) -> list[str]:
 
 
 def _query_variants(question: str, /) -> list[tuple[float, str]]:
+    """Build weighted FTS query variants: whole question, sentences, terms, reports."""
+
     variants: list[tuple[float, str, str]] = []
     full = analyze_fts_query(question)
     if full:
@@ -361,6 +403,128 @@ def _query_variants(question: str, /) -> list[tuple[float, str]]:
 def _triggered_groups(question: str, /) -> set[str]:
     question_terms = set(_salient_terms(question))
     return {group for group, trigger_terms in _REPORT_TRIGGERS.items() if question_terms & trigger_terms}
+
+
+def _document_of_hit(hit, /) -> str | None:
+    """Read the document identity from the projected entry text's first line.
+
+    TextEvidence 投影正文为 f"{document_id}\\n{page text}", 首行即文档标识; 空
+    白页入库后 strip 只剩 document_id 同样可解析. 首行含空白则不是标识形态
+    (例如正文无前缀的异常条目), 返回 None 退回无隔离排序.
+    """
+
+    first, _sep, _rest = (hit.text or "").partition("\n")
+    candidate = first.strip()
+    if not candidate or any(char.isspace() for char in candidate):
+        return None
+    return candidate
+
+
+def _identify_document(fused: dict[tuple[str, str], list], question: str, /) -> str | None:
+    """Match question terms against document_id name segments to find one target.
+
+    document_id 首段是发行人名 (如 PEPSICO_2022_10K 的 pepsi / pepsico、
+    AMERICANWATERWORKS_2021_10K 的 american), 与问题 FTS 词相等或互为前缀
+    时命中; 命中文档数不为 1 (题目无公司词, 或 10k 类泛词全中) 则返回 None,
+    跳过隔离与注入, 退回纯 RRF 排序, 不报错.
+    """
+
+    tokens = [term for term in _salient_terms(question) if len(term) >= 2]
+    if not tokens:
+        return None
+    documents = {_document_of_hit(hit) for _rrf, hit in fused.values()}
+    documents.discard(None)
+    matched: set[str] = set()
+    for document in documents:
+        name = re.split(r"[\s_]+", document, maxsplit=1)[0].lower()
+        if not any(char.isalpha() for char in name):
+            continue
+        for token in tokens:
+            if token == name or (len(token) >= 4 and (name.startswith(token) or token.startswith(name))):
+                matched.add(document)
+                break
+    return matched.pop() if len(matched) == 1 else None
+
+
+def _identify_document_by_text(fused: dict[tuple[str, str], list], question: str, /) -> str | None:
+    """Identify the target document from page-text containment when naming fails.
+
+    document_id 命名不透明 (如纯数字 ID) 时名称匹配失效, 改用页面文本自校准:
+    对问题每个候选词 (含字母且长度 >=3, 或含数字的 2 字符词如 3m) 统计其在这轮
+    融合池各文档页面文本中的包含率 (含该词页数 / 该文档池内页数). 恰有一个文档
+    对某词同时满足: 池内页数达到下限、包含率过四成, 且严格领先所有其他文档
+    (其余文档包含率都低于独占上限, 或最高值达到次高值的主导倍数) 时锁定该文档.
+    公司自身财报页几乎每页都含司名/司名词, 而他司文档极少提及, 因此司名词呈
+    近乎独占或强主导形态; 泛词在多个文档都常见, 被领先条件排除. 多文档同时命中
+    或无命中都返回 None, 保持纯 RRF 排序, 不报错.
+    """
+
+    terms = [
+        term
+        for term in _salient_terms(question)
+        if any(char.isalpha() for char in term)
+        and (len(term) >= 3 or (len(term) == 2 and any(char.isdigit() for char in term)))
+    ]
+    if not terms:
+        return None
+    pages: dict[str, list[str]] = {}
+    for _rrf, hit in fused.values():
+        document = _document_of_hit(hit)
+        if document is not None:
+            pages.setdefault(document, []).append((hit.text or "").casefold())
+    if not pages:
+        return None
+    matched: set[str] = set()
+    for term in terms:
+        rates = {document: sum(term in text for text in texts) / len(texts) for document, texts in pages.items()}
+        best = max(rates.items(), key=lambda item: item[1])[0]
+        second = max((rate for document, rate in rates.items() if document != best), default=0.0)
+        if rates[best] < _TEXT_RATE_MIN or len(pages[best]) < _TEXT_POOL_MIN:
+            continue
+        if second >= _TEXT_OTHER_RATE_MAX and rates[best] < _TEXT_DOMINANCE * second:
+            continue
+        matched.add(best)
+    return matched.pop() if len(matched) == 1 else None
+
+
+def _promoted_keys(
+    fused: dict[tuple[str, str], list],
+    target: str | None,
+    groups: set[str],
+    legal: bool,
+    /,
+) -> set[tuple[str, str]]:
+    """Pick the top probed pages per group inside the target document.
+
+    报表主表页几乎全数字, 只命中 1-2 个低权重变体, RRF 累积分会被命中变体多
+    的散文页淹没. 每个报表组在目标文档内选探测命中页时, 以表头在页首出现的
+    字符位置为主序 (真主表页的 "Consolidated ..." 表头紧跟页首的目录条, 位于
+    ~20 字符处; 散文引用与目录条目出现在几百字符处), RRF 累积分只做并列裁决;
+    组内取前 _PROMOTION_SLOTS 页, 法务章节页 (页中句式) 按 RRF 取前
+    _LEGAL_PROMOTION_SLOTS 页. 注入页直接进入最终结果头部, 不再依赖累积分竞争.
+    """
+
+    if target is None:
+        return set()
+    candidates: dict[str, list[tuple[int, float, tuple[str, str]]]] = {}
+    for rrf, hit in fused.values():
+        if _document_of_hit(hit) != target:
+            continue
+        text = hit.text or ""
+        key = (hit.entry_id, hit.entry_version_id)
+        head = text[:_HEADER_WINDOW]
+        for group in groups & _PROMOTION_GROUPS:
+            match = _HEADER_PROBES[group].search(head)
+            if match:
+                candidates.setdefault(group, []).append((match.start(), -rrf, key))
+        if legal and _LEGAL_PAGE_PROBE.search(text):
+            candidates.setdefault("legal", []).append((_VARIANT_CAP + 1, -rrf, key))
+    promoted: set[tuple[str, str]] = set()
+    for group, entries in candidates.items():
+        entries.sort()
+        slots = _LEGAL_PROMOTION_SLOTS if group == "legal" else _PROMOTION_SLOTS
+        promoted.update(key for _position, _neg_rrf, key in entries[:slots])
+    return promoted
 
 
 def _page_of_source_id(source_id: object, /) -> int | None:
@@ -398,10 +562,19 @@ async def _apply_page_priors(memory, rescored: list[list], groups: set[str], /) 
             if page_number is not None:
                 page_numbers[id(item[2])] = page_number
                 break
-    anchors = [page_numbers[id(item[2])] for item in rescored[:40] if item[3] > 0 and id(item[2]) in page_numbers]
+    # 锚点取获得实质探测加分的页 (注入页 / 无隔离时的表头页); 仅隔离分不加分
+    # 的目标文档页不能当锚点, 否则邻页加成会在全文档范围内稀释失效.
+    anchors = [
+        page_numbers[id(item[2])]
+        for item in rescored[:40]
+        if item[3] > 0 and abs(item[3] - _DOC_ISOLATION_BONUS) > 1e-9 and id(item[2]) in page_numbers
+    ]
     for item in rescored:
         page_number = page_numbers.get(id(item[2]))
-        if page_number is None or item[3] > 0:
+        if page_number is None:
+            continue
+        isolated = abs(item[3] - _DOC_ISOLATION_BONUS) <= 1e-9
+        if item[3] > 0 and not isolated:
             continue
         if anchors:
             neighbor_bonus = 0.0
