@@ -225,9 +225,21 @@ workflow:
     - data:
         isInIteration: false
         sourceType: http-request
-        targetType: code
-      id: e-mem-code
+        targetType: http-request
+      id: e-mem-listhttp
       source: memory_http
+      sourceHandle: source
+      target: memory_list_http
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      selected: false
+    - data:
+        isInIteration: false
+        sourceType: http-request
+        targetType: code
+      id: e-memcode-list
+      source: memory_list_http
       sourceHandle: source
       target: memory_code
       targetHandle: target
@@ -237,9 +249,21 @@ workflow:
     - data:
         isInIteration: false
         sourceType: code
-        targetType: if-else
-      id: e-mem-route
+        targetType: code
+      id: e-mem-req2
       source: memory_code
+      sourceHandle: source
+      target: req2_code
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      selected: false
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: if-else
+      id: e-req2-route
+      source: req2_code
       sourceHandle: source
       target: route
       targetHandle: target
@@ -425,8 +449,6 @@ workflow:
             - keywords：从玩家原话里挑 3 个中文关键词，优先怪谈名词（如 电梯/楼层/对讲机/粉笔/雨衣/电台/座位），
               不要“我/然后/可以/一下”这类虚词；原话实在没有名词就给场景通用词（如 门/声音/走廊）。
             - action：不超过 40 字，用第三人称概括玩家本轮要做的事，形如“玩家打算……”。
-            - reroll：只在 intent="start" 时有意义。玩家明确想要一份**新**委托（“换个/重新派单/来点新的/换场景”）填 1；
-              玩家说“继续上一局/回到刚才那个场景”或首次开局填 0。
             - difficulty：1 到 5 的整数，玩家没提难度就填 0。
               “简单点/别太难/新手”＝1～2，“中等/正常”＝3，“难一点/要命/越狠越好”＝4～5。
 
@@ -465,8 +487,17 @@ workflow:
           import json
           import re
 
+          REROLL_WORDS = ("换个", "换场景", "换单", "重新派", "重派", "来点新的", "换一个",
+                          "新的一局", "重新开局", "别的场景", "不要这个", "重开")
+          # 「别重派」「不要换场景」里同样含“重派/换个”字样：先抹掉否定说法，
+          # 剩下的才算真的想重派，否则一句“继续上一局，别重派”就把场景换掉了。
+          NEGATED_REROLL = re.compile(
+              r"(?:别|不要|不想|不用|不必|不准|不许|不想再|没有|没|先别|可别|千万别|不)"
+              r"(?:再|要|给我|换|重新)*"
+              r"(?:%s)" % "|".join(REROLL_WORDS))
 
-          def main(raw: str) -> dict:
+
+          def main(raw: str, query: str) -> dict:
               """容错解析分类器输出：任何不合法 JSON 都不应该让游戏卡住。"""
               txt = (raw or "").strip()
               m = re.search(r"\{.*\}", txt, re.S)
@@ -486,10 +517,11 @@ workflow:
                   kws = [kws]
               kw_list = [re.sub(r"\s+", "", str(k)) for k in kws if str(k).strip()][:3]
               action = re.sub(r"\s+", " ", str(data.get("action") or "")).strip()[:120]
-              try:
-                  reroll = 1 if bool(data.get("reroll")) and intent == "start" else 0
-              except Exception:
-                  reroll = 0
+              # reroll 只认玩家原话里的显式换单说法，不信模型的裁量：
+              # 「继续 / 接着 / 然后呢」必须留在当前场景，重派是最破坏沉浸的误判。
+              asked = str(query or "")
+              wanted = NEGATED_REROLL.sub("", asked)
+              reroll = 1 if (intent == "start" and any(w in wanted for w in REROLL_WORDS)) else 0
               try:
                   difficulty = int(data.get("difficulty"))
               except Exception:
@@ -528,6 +560,10 @@ workflow:
           - intent_llm
           - text
           variable: raw
+        - value_selector:
+          - sys
+          - query
+          variable: query
       height: 96
       id: intent_code
       position:
@@ -552,67 +588,29 @@ workflow:
               return cleaned or "ANON"
 
 
-          def main(player_id: str, query: str, intent: str, action: str, keywords_csv: str,
-                   scene_id: str, revealed: str, reroll: float, top_k: float,
-                   difficulty: float) -> dict:
-              """所有 HTTP 请求体都在这里 json.dumps，避免玩家原话里的引号/换行拼坏 JSON。"""
+          def main(player_id: str) -> dict:
+              """先只拼 PowerContext 建档请求体。检索请求体要等读完记忆之后再拼
+              （见「组装检索请求体」），否则跨会话续不上档案袋里的那局。
+
+              所有 HTTP 请求体都在这里 json.dumps，避免玩家原话里的引号/换行拼坏 JSON。
+              """
               pid = _pid(player_id)
-              kws = str(keywords_csv or "").replace(",", " ")
-              # 派单只看玩家自己的口味原话；第三人称概括是“他在要求派单”这类元话，
-              # 混进口味里会把检索带偏（实测会把深夜电台换成电梯）。
-              scene_taste = (str(query or "") + " " + kws).strip()[:600]
-              act_taste = (action + " " + str(query or "")).strip()[:600]
-              keep_scene = str(scene_id or "")
-              if int(reroll or 0) == 1:
-                  keep_scene = ""
-              kinds = max(1, min(int(top_k or 6), 30))
               scope_body = {
                   "title": "午夜档案馆·工号" + pid,
                   "summary": "规则怪谈玩家档案",
                   "idempotency_key": "archive-player-" + pid,
               }
-              scene_body = {
-                  "taste": scene_taste,
-                  "scene_id": keep_scene,
-                  "revealed_csv": str(revealed or ""),
-              }
-              try:
-                  diff = int(difficulty or 0)
-              except Exception:
-                  diff = 0
-              if 1 <= diff <= 5:
-                  scene_body["difficulty"] = diff
-              search_body = {
-                  "query": act_taste,
-                  "scene_id": keep_scene,
-                  "kinds_csv": "rule,omen,item,npc,ending",
-                  "keywords_csv": str(keywords_csv or ""),
-                  "top_k": kinds,
-                  "revealed_csv": str(revealed or ""),
-              }
               return {
                   "player_tag": pid,
                   "scope_body": json.dumps(scope_body, ensure_ascii=False),
-                  "scene_body": json.dumps(scene_body, ensure_ascii=False),
-                  "search_body": json.dumps(search_body, ensure_ascii=False),
-                  "is_start": "1" if intent == "start" else "0",
               }
         code_language: python3
-        desc: 把玩家原话安全地编成各服务需要的 JSON 请求体
+        desc: 把工号安全地编成 PowerContext 建档请求体（工号只清洗成 0-9A-Za-z 与少量符号，防注入）
         outputs:
-          is_start:
-            children: null
-            type: string
           player_tag:
             children: null
             type: string
-          scene_body:
-            children: null
-            type: string
           scope_body:
-            children: null
-            type: string
-          search_body:
             children: null
             type: string
         selected: false
@@ -623,42 +621,6 @@ workflow:
           - start
           - player_id
           variable: player_id
-        - value_selector:
-          - sys
-          - query
-          variable: query
-        - value_selector:
-          - intent_code
-          - intent
-          variable: intent
-        - value_selector:
-          - intent_code
-          - action
-          variable: action
-        - value_selector:
-          - intent_code
-          - keywords_csv
-          variable: keywords_csv
-        - value_selector:
-          - conversation
-          - scene_id
-          variable: scene_id
-        - value_selector:
-          - conversation
-          - revealed
-          variable: revealed
-        - value_selector:
-          - intent_code
-          - reroll
-          variable: reroll
-        - value_selector:
-          - intent_code
-          - difficulty
-          variable: difficulty
-        - value_selector:
-          - env
-          - ARCHIVE_TOP_K
-          variable: top_k
       height: 96
       id: req_code
       position:
@@ -727,13 +689,19 @@ workflow:
               if not sid:
                   sid = str(fallback or "")
                   state = "fallback_env" if sid else "missing"
-              query = ("%s 违规 结局 偏好 %s" % (player_tag, keywords_csv)).strip()
+              # 写入侧说的是「违反 / 解锁封存规则 / 达成结局」，查询词必须跟着这套措辞，
+              # 否则 fts 召回会漏掉自己上一局写下的条目（实测「违规」召不到「违反」）。
+              query = ("%s %s 违反 违规 解锁 封存 结局 预兆" % (player_tag, keywords_csv)).strip()
               prepare_body = json.dumps({"scope_id": sid, "query": query, "max_bytes": 6000},
                                         ensure_ascii=False)
-              return {"scope_id": sid, "scope_state": state, "prepare_body": prepare_body}
+              list_body = json.dumps({"scope_id": sid, "include_inactive": False}, ensure_ascii=False)
+              return {"scope_id": sid, "scope_state": state, "prepare_body": prepare_body, "list_body": list_body}
         code_language: python3
         desc: ''
         outputs:
+          list_body:
+            children: null
+            type: string
           prepare_body:
             children: null
             type: string
@@ -822,6 +790,47 @@ workflow:
       type: custom
       width: 244
     - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-list
+            key: ''
+            type: text
+            value: '{{#scope_code.list_body#}}'
+          type: raw-text
+        desc: 顺序读该工号档案袋里的记忆条目（不靠相似度）。fts 召回随措辞波动，这一路保证最近几条一定在。
+        headers: 'Content-Type:application/json'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 200
+        selected: false
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 按顺序读档案袋
+        type: http-request
+        url: '{{#env.PC_BASE_URL#}}/v1/memory/entries/list'
+        variables: []
+      height: 150
+      id: memory_list_http
+      position:
+        x: 2200
+        y: 320
+      positionAbsolute:
+        x: 2200
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
         code: |
           import json
           import re
@@ -829,6 +838,7 @@ workflow:
           EMPTY = "（档案袋是空的：这是本馆第一次见到这个工号。主持时不得假装认识玩家。）"
           BEGIN = "BEGIN_POWERCONTEXT_PREPARED_CONTEXT_V1"
           END_MARK = "END_POWERCONTEXT_PREPARED_CONTEXT_V1"
+          SCENE_TAG = "当前场景="
 
 
           def _texts(inner):
@@ -848,22 +858,45 @@ workflow:
                   return [g for g in got if g]
 
 
-          def main(body: str) -> dict:
+          def main(body: str, entries_raw: str) -> dict:
               try:
                   content = str(json.loads(body).get("content") or "")
               except Exception:
-                  return {"memory_block": "（记忆服务本次没有返回内容，按新玩家接待。）", "memory_count": 0}
-              if not content:
-                  return {"memory_block": EMPTY, "memory_count": 0}
-              m = re.search(BEGIN + r"(.*?)" + END_MARK, content, re.S)
-              items = _texts(m.group(1) if m else content)
+                  content = ""
+              items = []
+              if content:
+                  m = re.search(BEGIN + r"(.*?)" + END_MARK, content, re.S)
+                  items = _texts(m.group(1) if m else content)
+              # 兜底通道：entries/list 按写入顺序返回，不受 fts 措辞影响。
+              recent = []
+              try:
+                  for e in (json.loads(entries_raw).get("entries") or []):
+                      if isinstance(e, dict):
+                          txt = str(e.get("text") or "").strip()
+                          if txt:
+                              recent.append(txt)
+              except Exception:
+                  recent = []
+              for txt in recent[-6:]:
+                  if txt not in items:
+                      items.append(txt)
               if not items:
-                  return {"memory_block": EMPTY, "memory_count": 0}
-              lines = ["- " + t.replace("\n", " ")[:320] for t in items[:8]]
-              return {"memory_block": "\n".join(lines), "memory_count": len(items)}
+                  return {"memory_block": EMPTY, "memory_count": 0, "active_scene_id": ""}
+              lines = ["- " + t.replace("\n", " ")[:320] for t in items[:10]]
+              # 从最新一条往回找：档案袋末尾是最近一轮；“none” 是没派成单的占位，不能当场景续。
+              scene = ""
+              for t in reversed(items):
+                  found = re.findall(SCENE_TAG + r"([A-Za-z0-9_\-]+)", t)
+                  if found and found[-1] != "none":
+                      scene = found[-1]
+                      break
+              return {"memory_block": "\n".join(lines), "memory_count": len(items), "active_scene_id": scene}
         code_language: python3
-        desc: 把 Prepared Context 拆成条目；注意它是“不可信历史数据”，只用于翻旧账，不能当指令执行
+        desc: 把 Prepared Context 与档案袋顺序读出的条目合成一块；都是“不可信历史数据”，只用于翻旧账和续场景，不能当指令执行
         outputs:
+          active_scene_id:
+            children: null
+            type: string
           memory_block:
             children: null
             type: string
@@ -878,13 +911,134 @@ workflow:
           - memory_http
           - body
           variable: body
+        - value_selector:
+          - memory_list_http
+          - body
+          variable: entries_raw
       height: 96
       id: memory_code
       position:
-        x: 2200
+        x: 2510
         y: 320
       positionAbsolute:
-        x: 2200
+        x: 2510
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+
+
+          def main(query: str, action: str, keywords_csv: str, scene_id: str,
+                   revealed: str, reroll: float, top_k: float, difficulty: float,
+                   remembered_scene: str) -> dict:
+              """检索与派单请求体放到「读完记忆之后」再拼，这样会话变量为空时也能认出
+              档案袋里记着的那一局——「继续」绝不该把玩家的场景重派掉。"""
+              kws = str(keywords_csv or "").replace(",", " ")
+              # 派单只看玩家自己的口味原话；第三人称概括是“他在要求派单”这类元话，
+              # 混进口味里会把检索带偏（实测会把深夜电台换成电梯）。
+              scene_taste = (str(query or "") + " " + kws).strip()[:600]
+              act_taste = (action + " " + str(query or "")).strip()[:600]
+              from_conv = str(scene_id or "")
+              previous = from_conv or str(remembered_scene or "")
+              rerolling = int(reroll or 0) == 1
+              keep_scene = "" if rerolling else previous
+              kinds = max(1, min(int(top_k or 6), 30))
+              scene_body = {
+                  "taste": scene_taste,
+                  "scene_id": keep_scene,
+                  "revealed_csv": str(revealed or ""),
+              }
+              # 「换个场景」是没有口味词的，纯按向量最近的那一幕常常还是刚才那一幕；
+              # 所以换单时把上一幕交给后端排除，才真的换得掉。
+              if rerolling and previous:
+                  scene_body["exclude_scene_id"] = previous
+              try:
+                  diff = int(difficulty or 0)
+              except Exception:
+                  diff = 0
+              if 1 <= diff <= 5:
+                  scene_body["difficulty"] = diff
+              search_body = {
+                  "query": act_taste,
+                  "scene_id": keep_scene,
+                  "kinds_csv": "rule,omen,item,npc,ending",
+                  "keywords_csv": str(keywords_csv or ""),
+                  "top_k": kinds,
+                  "revealed_csv": str(revealed or ""),
+              }
+              return {
+                  "scene_body": json.dumps(scene_body, ensure_ascii=False),
+                  "search_body": json.dumps(search_body, ensure_ascii=False),
+                  "active_scene_id": keep_scene,
+                  "scene_source": "conversation" if from_conv and keep_scene else ("memory" if keep_scene else "reroll"),
+              }
+        code_language: python3
+        desc: 读完玩家记忆后，把玩家原话编成 seekdb 的派单/检索请求体；场景优先取会话变量，其次取档案袋里记着的场景
+        outputs:
+          active_scene_id:
+            children: null
+            type: string
+          scene_body:
+            children: null
+            type: string
+          scene_source:
+            children: null
+            type: string
+          search_body:
+            children: null
+            type: string
+        selected: false
+        title: 组装检索请求体
+        type: code
+        variables:
+        - value_selector:
+          - sys
+          - query
+          variable: query
+        - value_selector:
+          - intent_code
+          - action
+          variable: action
+        - value_selector:
+          - intent_code
+          - keywords_csv
+          variable: keywords_csv
+        - value_selector:
+          - conversation
+          - scene_id
+          variable: scene_id
+        - value_selector:
+          - conversation
+          - revealed
+          variable: revealed
+        - value_selector:
+          - intent_code
+          - reroll
+          variable: reroll
+        - value_selector:
+          - env
+          - ARCHIVE_TOP_K
+          variable: top_k
+        - value_selector:
+          - intent_code
+          - difficulty
+          variable: difficulty
+        - value_selector:
+          - memory_code
+          - active_scene_id
+          variable: remembered_scene
+      height: 130
+      id: req2_code
+      position:
+        x: 2820
+        y: 320
+      positionAbsolute:
+        x: 2820
         y: 320
       selected: false
       sourcePosition: right
@@ -918,10 +1072,10 @@ workflow:
       height: 150
       id: route
       position:
-        x: 2510
+        x: 3130
         y: 320
       positionAbsolute:
-        x: 2510
+        x: 3130
         y: 320
       selected: false
       sourcePosition: right
@@ -937,7 +1091,7 @@ workflow:
           - id: key-value-scene
             key: ''
             type: text
-            value: '{{#req_code.scene_body#}}'
+            value: '{{#req2_code.scene_body#}}'
           type: raw-text
         desc: seekdb 场景选型（口味走向量匹配 + 难度结构化过滤）并取回该场景整套档案包；已解锁的封存规则这次会一起返回。
         headers: "Content-Type:application/json\nX-Archive-Token:{{#env.ARCHIVE_TOKEN#}}"
@@ -959,10 +1113,10 @@ workflow:
       height: 150
       id: scene_http
       position:
-        x: 2820
+        x: 3440
         y: 190
       positionAbsolute:
-        x: 2820
+        x: 3440
         y: 190
       selected: false
       sourcePosition: right
@@ -978,7 +1132,7 @@ workflow:
           - id: key-value-search
             key: ''
             type: text
-            value: '{{#req_code.search_body#}}'
+            value: '{{#req2_code.search_body#}}'
           type: raw-text
         desc: 玩家每采取一次行动，就用行动文本向 seekdb 做一次三路混合检索，命中的条目才是主持人可以引用的裁决依据。
         headers: "Content-Type:application/json\nX-Archive-Token:{{#env.ARCHIVE_TOKEN#}}"
@@ -1000,10 +1154,10 @@ workflow:
       height: 150
       id: search_http
       position:
-        x: 3130
+        x: 3750
         y: 470
       positionAbsolute:
-        x: 3130
+        x: 3750
         y: 470
       selected: false
       sourcePosition: right
@@ -1024,10 +1178,10 @@ workflow:
       height: 118
       id: agg_body
       position:
-        x: 3440
+        x: 4060
         y: 320
       positionAbsolute:
-        x: 3440
+        x: 4060
         y: 320
       selected: false
       sourcePosition: right
@@ -1191,10 +1345,10 @@ workflow:
       height: 130
       id: archive_code
       position:
-        x: 3750
+        x: 4370
         y: 320
       positionAbsolute:
-        x: 3750
+        x: 4370
         y: 320
       selected: false
       sourcePosition: right
@@ -1283,10 +1437,10 @@ workflow:
       height: 150
       id: host_llm
       position:
-        x: 4060
+        x: 4680
         y: 320
       positionAbsolute:
-        x: 4060
+        x: 4680
         y: 320
       selected: false
       sourcePosition: right
@@ -1326,21 +1480,73 @@ workflow:
               return ",".join(out)
 
 
+          # Dify 把推理正文包成 “think 开标签 … think 闭标签”（闭合标签就是斜杠开头的那个）。
+          # 两种形态都要处理：成对的只删这一段；被 max_tokens 截断、没有闭合标签的，
+          # 必须从开标签一路删到末尾——正文里若写着「封存 2 条＝RAD-05/06」，留着就是泄露。
+          THINK_CLOSE = r"<\s*/" + "think\\s*>"
+          THINK_BLOCK = re.compile(r"<think\s*>.*?" + THINK_CLOSE, re.S)
+          THINK_TAIL = re.compile(r"<think\s*>.*", re.S)
+          REASON_MARK = re.compile(r"<!--\s*dify-deepseek-reasoning[^>]*-->")
+
+
+          def _scrub(text):
+              stripped = str(text or "")
+              stripped = REASON_MARK.sub("", THINK_BLOCK.sub("", stripped))
+              if "<think" in stripped:  # 闭合标签没出现：正文被截断了，整段丢掉
+                  stripped = REASON_MARK.sub("", THINK_TAIL.sub("", stripped))
+              return stripped.strip()
+
+
+          def _json_objects(text):
+              """括号配平扫描（认字符串内的花括号）：贪婪的 {.*} 会把思考正文里的
+              花括号一并吞进来，整串交给 json.loads 就解析失败——实测漏过两次。"""
+              found, depth, start, instr, esc = [], 0, -1, False, False
+              for i, ch in enumerate(text):
+                  if instr:
+                      if esc:
+                          esc = False
+                      elif ch == "\\":
+                          esc = True
+                      elif ch == '"':
+                          instr = False
+                      continue
+                  if ch == '"':
+                      instr = True
+                  elif ch == "{":
+                      if depth == 0:
+                          start = i
+                      depth += 1
+                  elif ch == "}" and depth:
+                      depth -= 1
+                      if depth == 0:
+                          found.append(text[start:i + 1])
+              # 裁决永远是最后吐出来的那个对象，倒着试最靠得住。
+              return found[::-1]
+
+
+          def _verdict(raw):
+              """直接从模型原文里捞裁决对象：思考正文里有没有花括号、闭合标签有没有被
+              max_tokens 截掉，都不该影响后面那段裁决的解析。"""
+              text = str(raw or "")
+              cand = list(_json_objects(text))
+              m = re.search(r"\{.*\}", text, re.S)
+              if m:
+                  cand.append(m.group(0))
+              for blob in cand:
+                  try:
+                      data = json.loads(blob)
+                  except Exception:
+                      continue
+                  if isinstance(data, dict) and data:
+                      return data
+              return {}
+
+
           def main(raw: str, codes_csv: str, locked_csv: str, revealed_in: str,
                    violations_in: str, endings_in: str, turn: float,
-                   scene_title: str, player_id: str, action: str, intent: str,
-                   scope_id: str) -> dict:
-              txt = (raw or "").strip()
-              m = re.search(r"\{.*\}", txt, re.S)
-              data = {}
-              if m:
-                  try:
-                      data = json.loads(m.group(0))
-                  except Exception:
-                      data = {}
-              if not isinstance(data, dict):
-                  data = {}
-
+                   scene_title: str, scene_id: str, player_id: str, action: str,
+                   intent: str, scope_id: str) -> dict:
+              data = _verdict(raw)
               allowed = set(_csv(codes_csv))
               locked = set(_csv(locked_csv))
               revealed = _list(revealed_in)
@@ -1355,13 +1561,24 @@ workflow:
                   sealed_hint = ""
               revealed_now = _only(_list(data.get("revealed_now")), locked - set(revealed))
 
-              narration = str(data.get("narration") or "").strip()
+              narration = _scrub(data.get("narration"))
               if not narration:
+                  # 解析失败时不能把模型原文当叙述吐给玩家：那是 deepseek 的推理正文，
+                  # 里面写着“封存 2 条＝RAD-03/05”这类玩家不该看到的话。
                   if data:
                       narration = "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。"
                   else:
-                      narration = (txt or "主持人低头核对表格，没有出声。请把动作说得更具体些。")[:600]
+                      narration = "主持人笔下的那行字被潮气泡花了，没能递到你手上。请把动作说得更具体些，或换个说法再来一次。"
               narration = narration[:1200]
+              # 闸门：模型可以在叙述里“提到”封存编号，但玩家就不可能知道那是猜的还是泄露的。
+              # 未解锁的编号一律从叙述文本里抹掉——白名单不只管裁决，也管措辞。
+              redacted = []
+              unlocked = set(revealed) | set(revealed_now)
+              for code in sorted(locked):
+                  if code in unlocked or code not in narration:
+                      continue
+                  narration = narration.replace(code, "一段还没被写下来的规矩")
+                  redacted.append(code)
 
               violations_next = _merge(violations_in, triggered)
               endings_next = _merge(endings_in, [ending] if ending else [])
@@ -1376,7 +1593,8 @@ workflow:
               else:
                   kind = "progress"
 
-              bits = ["工号 %s 在《%s》第 %d 轮：%s" % (player_id, scene_title or "未派单", int(turn or 0) + 1, action)]
+              bits = ["工号 %s 在《%s》第 %d 轮 当前场景=%s：%s" % (
+                  player_id, scene_title or "未派单", int(turn or 0) + 1, scene_id or "none", action)]
               if triggered:
                   bits.append("违反 " + "/".join(triggered))
               if near:
@@ -1398,6 +1616,7 @@ workflow:
               }, ensure_ascii=False)
               return {
                   "narration": narration,
+                  "narration_redacted": ",".join(redacted),
                   "remember_body": remember_body,
                   "mem_kind": kind,
                   "mem_text": mem_text,
@@ -1411,7 +1630,8 @@ workflow:
                   "sealed_hint": sealed_hint,
               }
         code_language: python3
-        desc: 校验主持人引用的编号必须来自本轮检索结果（防幻觉），并把本轮事实整理成待写入 PowerContext 的记忆
+        desc: 校验主持人引用的编号必须来自本轮检索结果（防幻觉），并把本轮事实整理成待写入 PowerContext
+          的记忆；解析不出裁决 JSON 时只说固定的兜底文案，绝不把模型原文（含推理正文）吐给玩家
         outputs:
           cite_line:
             children: null
@@ -1429,6 +1649,9 @@ workflow:
             children: null
             type: string
           narration:
+            children: null
+            type: string
+          narration_redacted:
             children: null
             type: string
           remember_body:
@@ -1486,6 +1709,10 @@ workflow:
           - scene_title
           variable: scene_title
         - value_selector:
+          - archive_code
+          - scene_id
+          variable: scene_id
+        - value_selector:
           - start
           - player_id
           variable: player_id
@@ -1504,10 +1731,10 @@ workflow:
       height: 130
       id: host_code
       position:
-        x: 4370
+        x: 4990
         y: 320
       positionAbsolute:
-        x: 4370
+        x: 4990
         y: 320
       selected: false
       sourcePosition: right
@@ -1587,10 +1814,10 @@ workflow:
       height: 130
       id: state_assign
       position:
-        x: 4680
+        x: 5300
         y: 320
       positionAbsolute:
-        x: 4680
+        x: 5300
         y: 320
       selected: false
       sourcePosition: right
@@ -1628,10 +1855,10 @@ workflow:
       height: 150
       id: remember_http
       position:
-        x: 4990
+        x: 5610
         y: 320
       positionAbsolute:
-        x: 4990
+        x: 5610
         y: 320
       selected: false
       sourcePosition: right
@@ -1657,10 +1884,10 @@ workflow:
       height: 190
       id: reply
       position:
-        x: 5300
+        x: 5920
         y: 320
       positionAbsolute:
-        x: 5300
+        x: 5920
         y: 320
       selected: false
       sourcePosition: right

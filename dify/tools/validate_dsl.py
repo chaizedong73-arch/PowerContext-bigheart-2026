@@ -230,14 +230,49 @@ def main() -> int:
                     err(f"scope_code.prepare_body wrong: {prepped}")
 
         if prepare_body is not None:
-            out = compiled["memory_code"][0](body=prepare_body)
+            entries_body = load("entries_list.json") or '{"entries": []}'
+            out = compiled["memory_code"][0](body=prepare_body, entries_raw=entries_body)
             if not isinstance(out, dict):
                 err(f"memory_code returned {type(out).__name__}, Dify requires dict")
             else:
-                if set(out) != {"memory_block", "memory_count"}:
+                if set(out) != {"memory_block", "memory_count", "active_scene_id"}:
                     err(f"memory_code keys {set(out)} != declared outputs")
-                print("memory_code -> count=", out.get("memory_count"))
+                print("memory_code -> count=", out.get("memory_count"), "active_scene_id=", out.get("active_scene_id"))
                 print((out.get("memory_block") or "")[:400])
+
+        # reroll 只认玩家原话里的显式换单说法；「继续」必须留在当前场景。
+        intent = compiled["intent_code"][0]
+        for q, want in [("继续", 0), ("接着讲", 0), ("继续上一局", 0), ("换个场景", 1),
+                        ("重新派单吧", 1), ("给我来点新的", 1),
+                        # 云端实测：A-CLOUD-S11 说「继续上一局，别重派」被当成重派，
+                        # 场景从《白杨便利的第十一夜》换成了自习室——否定式不能算换单。
+                        ("继续上一局，别重派。", 0), ("不要换场景", 0), ("别给我换个场景", 0),
+                        ("不想重开，就这个", 0), ("先别重新派单", 0), ("没换场景的意思", 0),
+                        ("换个场景吧，别重派上一局", 1), ("这个太简单，换一个难的", 1)]:
+            got = intent(raw=json.dumps({"intent": "start", "keywords": ["门"], "action": "玩家打算继续",
+                                        "difficulty": 0}, ensure_ascii=False), query=q)["reroll"]
+            if got != want:
+                err(f"intent_code reroll(«{q}»)={got}, expected {want}")
+        resume_out = compiled["req2_code"][0](
+            query="继续", action="玩家打算继续查看电台", keywords_csv="电台,磁带", scene_id="",
+            revealed="", reroll=0, top_k=6, difficulty=0, remembered_scene="scn_seaside_radio")
+        resumed = json.loads(resume_out["scene_body"])
+        if resumed.get("scene_id") != "scn_seaside_radio":
+            err(f"req2_code did not resume the remembered scene: {resumed}")
+        if json.loads(compiled["req2_code"][0](
+                query="换个场景", action="玩家打算换单", keywords_csv="电梯", scene_id="scn_seaside_radio",
+                revealed="", reroll=1, top_k=6, difficulty=3, remembered_scene="")["scene_body"]).get("scene_id"):
+            err("req2_code kept a scene while the player explicitly asked to reroll")
+        # 换单还得把上一幕交给后端排除：「换个场景」是没有口味词的，不排除时向量最近的
+        # 那一幕常常还是刚才那一幕（云端 s10 轮4 实测踩过）。
+        excluded = json.loads(compiled["req2_code"][0](
+            query="换个场景", action="玩家打算换单", keywords_csv="电梯", scene_id="",
+            revealed="RULE-RAD-05", reroll=1, top_k=6, difficulty=0,
+            remembered_scene="scn_seaside_radio")["scene_body"])
+        if excluded.get("scene_id") or excluded.get("exclude_scene_id") != "scn_seaside_radio":
+            err(f"reroll must exclude the previous scene for the backend: {excluded}")
+        if excluded.get("revealed_csv") != "RULE-RAD-05":
+            err(f"reroll dropped the already-unsealed codes: {excluded}")
 
         for label, body in (("scene", scene_body), ("search", search_body)):
             if body is None:
@@ -284,6 +319,7 @@ def main() -> int:
             kwargs = dict(raw=json.dumps(answer, ensure_ascii=False), codes_csv=arc["codes_csv"],
                           locked_csv=arc["locked_csv"], revealed_in="", violations_in="RULE-ELV-01",
                           endings_in="", turn=3, scene_title=arc["scene_title"] or "测试场景",
+                          scene_id=arc["scene_id"] or "scn_test",
                           player_id="A-1101", action="玩家打算违反一条规则", intent="act",
                           scope_id="scp_test_1")
             kwargs.update(over)
@@ -332,6 +368,8 @@ def main() -> int:
                 if mem != {"scope_id": "scp_test_1", "kind": out["mem_kind"],
                            "text": out["mem_text"], "reason": "dify-chatflow-turn"}:
                     err(f"host_code[{label}] remember_body mismatch: {mem}")
+            if "当前场景=" not in out["mem_text"]:
+                err(f"host_code[{label}] memory text has no 当前场景 tag, cross-session resume would break")
             for name, expect in checks:
                 if name.startswith("no-"):
                     if expect in blob:
@@ -340,51 +378,99 @@ def main() -> int:
                     err(f"host_code[{label}] check {name} failed, expected {expect!r} in {blob[:300]}")
             print(f"\n=== host_code[{label}] -> {blob[:330]}")
 
+        # 封存编号泄露闸门：模型把未解锁编号写进叙述时，必须在出文本前抹掉
+        leak = run_host({"narration": "你迟早会撞上 %s，别回头。" % good_locked, "triggered": [],
+                         "near": [], "sealed_hint": "", "revealed_now": [], "ending": "",
+                         "mood": "uneasy"})
+        if good_locked in leak["narration"]:
+            err("host_code 没有抹掉叙述里泄露的封存编号")
+        if leak["narration_redacted"] != good_locked:
+            err(f"host_code 泄露闸门没记账: {leak['narration_redacted']!r}")
+        unlocked = run_host({"narration": "你终于读懂了 %s。" % good_locked, "triggered": [],
+                             "near": [], "sealed_hint": "", "revealed_now": [], "ending": "",
+                             "mood": "safe"}, revealed_in=good_locked)
+        if good_locked not in unlocked["narration"] or unlocked["narration_redacted"]:
+            err(f"已解锁的编号不该被抹掉: {unlocked['narration']!r} / {unlocked['narration_redacted']!r}")
+
+        # 推理正文泄露闸门：云端 deepseek-flash 会把思考写成
+        # "<think>\n<!--dify-deepseek-reasoning-->…"（没有闭合标签）。旧版兜底在裁决
+        # JSON 解析失败时把整段原文当叙述吐给玩家——cloud_run_s10 第 2/4 轮实测泄露过。
+        reasoning = ('<think>\n<!--dify-deepseek-reasoning-->封存 2 条，大概是 %s 与 RULE-RAD-05，'
+                     '我不能把编号区间报给玩家。' % good_locked)
+        verdict = {"narration": "收音机自己亮了。", "triggered": [], "near": [],
+                   "sealed_hint": "", "revealed_now": [], "ending": "", "mood": "uneasy"}
+        for label, messy, want_said in (
+                ("思考+裁决", reasoning + "\n" + json.dumps(verdict, ensure_ascii=False), "收音机自己亮了。"),
+                # 贪婪 {.*} 会被思考正文里的花括号带偏，配平扫描才捞得到真正的裁决对象
+                ("思考里带花括号", reasoning + '（比如 {"编号": 未写下}）\n' + json.dumps(verdict, ensure_ascii=False),
+                 "收音机自己亮了。"),
+                ("只有思考没有裁决", reasoning, "")):
+            out = run_host({"narration": ""}, raw=messy)
+            blob = json.dumps(out, ensure_ascii=False)
+            if "think>" in blob or "dify-deepseek-reasoning" in blob:
+                err(f"host_code[{label}] 把推理标记吐给了玩家: {blob[:220]}")
+            if "编号区间" in blob or "我不能" in blob:
+                err(f"host_code[{label}] 泄露了主持人的内心独白: {blob[:220]}")
+            if good_locked in out["narration"] or "RULE-RAD-05" in out["narration"]:
+                err(f"host_code[{label}] 叙述里带着封存编号: {out['narration'][:120]}")
+            if want_said:
+                if out["narration"] != want_said:
+                    err(f"host_code[{label}] 没解析出裁决 JSON: {out['narration'][:120]!r}")
+                if out["mood"] != "uneasy":
+                    err(f"host_code[{label}] 裁决里的 mood 丢了: {out['mood']!r}")
+            elif out["narration"] not in (
+                    "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。",
+                    "主持人笔下的那行字被潮气泡花了，没能递到你手上。请把动作说得更具体些，或换个说法再来一次。"):
+                err(f"host_code[{label}] 兜底叙述不该是模型原文: {out['narration'][:160]!r}")
+
         # bad JSON must not explode
         ok_intent = compiled["intent_code"][0](raw='{"intent":"START","keywords":["电梯","对讲机","门"],'
-                                                 '"action":"玩家打算走向电梯厅","reroll":true}')
+                                                  '"action":"玩家打算走向电梯厅"}', query="换个场景")
         if ok_intent != {"intent": "start", "keywords_csv": "电梯,对讲机,门",
                          "action": "玩家打算走向电梯厅", "reroll": 1, "difficulty": 0}:
             err(f"intent_code normalised wrongly: {ok_intent}")
-        if compiled["intent_code"][0](raw='{"intent":"act","keywords":"电梯","reroll":1}')['reroll'] != 0:
+        if compiled["intent_code"][0](raw='{"intent":"act","keywords":"电梯"}', query="换一个场景试试")["reroll"] != 0:
             err("reroll must be ignored unless intent=start")
         for raw_diff, want in (('{"difficulty":"4"}', 4), ('{"difficulty":9}', 5),
                                ('{"difficulty":"没提"}', 0), ('{"difficulty":null}', 0)):
-            got = compiled["intent_code"][0](raw=raw_diff)["difficulty"]
+            got = compiled["intent_code"][0](raw=raw_diff, query="")["difficulty"]
             if got != want:
                 err(f"intent_code difficulty {raw_diff} -> {got}, want {want}")
 
-        # req_code must survive hostile player input (quotes / newlines / braces)
+        # 请求体拼装必须扛住玩家原话里的引号/换行/大括号
         hostile = '他说"我要按 13"\n然后 {跑向} 楼梯'
-        rq = compiled["req_code"][0](player_id=' A"1/10 1\x01', query=hostile, intent="act",
-                                     action='玩家打算"回头"\n看', keywords_csv="门,声音",
-                                     scene_id="scn_office_elevator", revealed="RULE-ELV-06",
-                                     reroll=0, top_k=6, difficulty=3)
-        for field in ("scope_body", "scene_body", "search_body"):
+        rq = compiled["req_code"][0](player_id=' A"1/10 1\x01')
+        rq2 = compiled["req2_code"][0](query=hostile, action='玩家打算"回头"\n看', keywords_csv="门,声音",
+                                       scene_id="scn_office_elevator", revealed="RULE-ELV-06",
+                                       reroll=0, top_k=6, difficulty=3, remembered_scene="")
+        bodies = {"scope_body": rq["scope_body"], "scene_body": rq2["scene_body"],
+                  "search_body": rq2["search_body"]}
+        for field, raw_body in bodies.items():
             try:
-                parsed = json.loads(rq[field])
+                parsed = json.loads(raw_body)
             except Exception as exc:  # noqa: BLE001
-                err(f"req_code.{field} is not valid JSON for hostile input: {exc!r}")
+                err(f"{field} is not valid JSON for hostile input: {exc!r}")
                 continue
             if field == "scope_body" and parsed.get("idempotency_key") != "archive-player-A1101":
                 err(f"req_code sanitised 工号 wrongly: {parsed}")
             if field == "search_body" and parsed.get("query") != ('玩家打算"回头"\n看 ' + hostile)[:600]:
-                err(f"req_code.search_body query mangled: {parsed.get('query')!r}")
+                err(f"search_body query mangled: {parsed.get('query')!r}")
             if field == "search_body" and parsed.get("scene_id") != "scn_office_elevator":
-                err("req_code dropped the active scene for reroll=0")
+                err("req2_code dropped the active scene for reroll=0")
             if field == "scene_body":
                 if parsed.get("difficulty") != 3:
-                    err(f"req_code scene_body lost the difficulty cap: {parsed}")
+                    err(f"req2_code scene_body lost the difficulty cap: {parsed}")
                 if "玩家打算" in parsed.get("taste", ""):
                     err(f"scene taste polluted by the third-person action summary: {parsed}")
                 if "声音" not in parsed.get("taste", ""):
                     err(f"scene taste dropped the player keywords: {parsed}")
-        if json.loads(compiled["req_code"][0](player_id="A1", query="换个场景", intent="start",
-                                              action="玩家想要新委托", keywords_csv="门",
-                                              scene_id="scn_office_elevator", revealed="",
-                                              reroll=1, top_k=6, difficulty=0)["scene_body"]) != {
-                "taste": "换个场景 门", "scene_id": "", "revealed_csv": ""}:
-            err("reroll=1 should clear scene_id and omit difficulty when the player said none")
+        if json.loads(compiled["req2_code"][0](query="换个场景", action="玩家想要新委托",
+                                               keywords_csv="门", scene_id="scn_office_elevator",
+                                               revealed="", reroll=1, top_k=6, difficulty=0,
+                                               remembered_scene="")["scene_body"]) != {
+                "taste": "换个场景 门", "scene_id": "", "revealed_csv": "",
+                "exclude_scene_id": "scn_office_elevator"}:
+            err("reroll=1 should clear scene_id, exclude the old scene and omit difficulty when the player said none")
         bad_archive = compiled["archive_code"][0](body="<html>502</html>", revealed_in="RULE-ELV-06",
                                                  scene_id_in="scn_x", scene_title_in="标题")
         if not isinstance(bad_archive, dict) or bad_archive["scene_id"] != "scn_x":
@@ -393,23 +479,39 @@ def main() -> int:
             fn = compiled[nid][0]
             try:
                 if nid == "intent_code":
-                    r = fn(raw="not json at all")
+                    r = fn(raw="not json at all", query="继续")
                 else:
                     r = fn(raw="###", codes_csv="", locked_csv="", revealed_in="", violations_in="",
-                           endings_in="", turn=0, scene_title="", player_id="A-1", action="",
-                           intent="act", scope_id="")
+                           endings_in="", turn=0, scene_title="", scene_id="", player_id="A-1",
+                           action="", intent="act", scope_id="")
                 if not isinstance(r, dict):
                     err(f"{nid} malformed-input path returned {type(r).__name__}")
             except Exception as exc:  # noqa: BLE001
                 err(f"{nid} crashed on malformed LLM output: {exc!r}")
 
-        # memory failure path
-        try:
-            r = compiled["memory_code"][0](body='{"detail":"boom"}')
-            if not isinstance(r, dict):
-                err("memory_code error path returned non-dict")
-        except Exception as exc:  # noqa: BLE001
-            err(f"memory_code crashed on error body: {exc!r}")
+        # memory failure path（prepare 与 list 同时挂掉也不能让流程断）
+        for prep, lst in (('{\'detail\':"boom"}', '{"entries": []}'),
+                          ("", "<html>502</html>"),
+                          ('{"detail":"boom"}', '{"entries": [{"text": "工号 A-1 在《电梯》第 2 轮 当前场景=scn_office_elevator：违反 RULE-ELV-02"}]}')):
+            try:
+                r = compiled["memory_code"][0](body=prep, entries_raw=lst)
+                if not isinstance(r, dict):
+                    err(f"memory_code error path returned {type(r).__name__}")
+            except Exception as exc:  # noqa: BLE001
+                err(f"memory_code crashed on error body: {exc!r}")
+        # list 通道是唯一线索时，也必须把它拼进记忆块并解出场景
+        r = compiled["memory_code"][0](body='{"content":""}',
+                                      entries_raw='{"entries": [{"text": "工号 A-1 在《电梯》第 2 轮 当前场景=scn_office_elevator：违反 RULE-ELV-02"}]}')
+        if r["active_scene_id"] != "scn_office_elevator" or "RULE-ELV-02" not in r["memory_block"]:
+            err(f"memory_code ignored the entries/list fallback: {r}")
+        # 最新一条写的是 当前场景=none（那轮没派成单）：不能把 none 交给 seekdb，
+        # 后端会 404 unknown scene_id none 让整轮红掉，要往回找最近一次真场景。
+        r = compiled["memory_code"][0](
+            body='{"content":""}',
+            entries_raw='{"entries": [{"text": "工号 A-1 在《电梯》第 3 轮 当前场景=scn_office_elevator：平安"}, '
+                        '{"text": "工号 A-1 在《午夜档案馆》第 4 轮 当前场景=none：派单失败"}]}')
+        if r["active_scene_id"] != "scn_office_elevator":
+            err(f"memory_code 没跳过 当前场景=none: {r['active_scene_id']!r}")
 
     # round-trip proof: the DSL the cloud accepted and re-exported must still match
     # this file where it matters (graph shape + every variable reference).

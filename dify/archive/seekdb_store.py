@@ -338,24 +338,86 @@ def recent_calls(limit: int = 20) -> List[Dict[str, Any]]:
 
 
 def corpus_scenes() -> List[Dict[str, Any]]:
-    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    return [
-        {
-            "scene_id": s["scene_id"],
-            "title": s["title"],
-            "one_line": s.get("one_line", ""),
-            "difficulty": s.get("difficulty"),
-            "danger": s.get("danger"),
-            "tags": s.get("tags"),
-            "rule_count": len((s.get("entries") or {}).get("rule") or []),
-        }
-        for s in raw["scenes"]
-    ]
+    """场景清单同样从库里聚合，不回落 data/scenes.json。"""
+    col = collection()
+    res = col.get(where=_where(kinds=["scene"]), limit=60, include=["documents", "metadatas"])
+    counts = _rule_counts()
+    out: List[Dict[str, Any]] = []
+    seen: set = set()
+    for i, row in enumerate(_norm_rows(res)):
+        sid = row["scene_id"]
+        if not sid or sid in seen:
+            continue
+        seen.add(sid)
+        meta = _meta_of(res, i)
+        parsed = _parse_scene_document(row["document"], sid)
+        out.append(
+            {
+                "scene_id": sid,
+                "title": parsed.get("title") or meta.get("title") or sid,
+                "one_line": parsed.get("one_line", ""),
+                "difficulty": meta.get("difficulty"),
+                "danger": meta.get("danger"),
+                "tags": meta.get("tags"),
+                "rule_count": counts.get(sid, 0),
+            }
+        )
+    out.sort(key=lambda s: (s["difficulty"] is None, s["difficulty"], s["scene_id"]))
+    return out
 
 
 def scene_brief(scene_id: str) -> Dict[str, Any]:
-    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    for s in raw["scenes"]:
-        if s["scene_id"] == scene_id:
-            return s
-    return {}
+    """运行期取场景正文：只读 seekdb 里那条 kind=scene 的记录。
+
+    ``data/scenes.json`` 仅在 seed 时被读取；玩家拿到的 brief/tone 全部来自库，
+    所以「改了文件没重灌 seed」不会反映到运行时，反之库就是唯一事实来源。
+    """
+    col = collection()
+    res = col.get(where=_where(kinds=["scene"], scene_id=scene_id), limit=1, include=["documents", "metadatas"])
+    rows = _norm_rows(res)
+    if not rows:
+        return {}
+    meta = _meta_of(res, 0)
+    scene = {
+        "scene_id": scene_id,
+        "difficulty": meta.get("difficulty"),
+        "danger": meta.get("danger"),
+        "tags": meta.get("tags"),
+    }
+    scene.update(_parse_scene_document(rows[0]["document"], scene_id))
+    return scene
+
+
+def _rule_counts() -> Dict[str, int]:
+    """按场景统计生效规则条数，同样只问库。"""
+    col = collection()
+    res = col.get(where=_where(kinds=["rule"]), limit=200, include=["metadatas"])
+    counts: Dict[str, int] = {}
+    for row in _norm_rows(res):
+        if row["scene_id"]:
+            counts[row["scene_id"]] = counts.get(row["scene_id"], 0) + 1
+    return counts
+
+
+def _meta_of(res: Dict[str, Any], index: int) -> Dict[str, Any]:
+    metas = res.get("metadatas") or []
+    if metas and isinstance(metas[0], list):
+        metas = metas[0]
+    return metas[index] if index < len(metas) and metas[index] else {}
+
+
+def _parse_scene_document(document: str, scene_id: str) -> Dict[str, Any]:
+    """按 seed 时的拼接格式反解：``[scene_id] title｜one_line｜brief｜主持风格：tone``。"""
+    head = f"[{scene_id}] "
+    body = document[len(head) :] if document.startswith(head) else document
+    parts = body.split("｜")
+    if len(parts) != 4:
+        return {}
+    tone = parts[3]
+    prefix = "主持风格："
+    return {
+        "title": parts[0],
+        "one_line": parts[1],
+        "brief": parts[2],
+        "tone": tone[len(prefix) :] if tone.startswith(prefix) else tone,
+    }

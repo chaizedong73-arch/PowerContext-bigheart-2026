@@ -51,6 +51,9 @@ class ScenePackBody(BaseModel):
     difficulty: Optional[int] = None
     revealed_codes: Optional[List[str]] = None
     revealed_csv: Optional[str] = None
+    # 玩家明确要求换一幕时，派单要把上一幕排除掉。只说「换个场景」是没有口味词的，
+    # 纯按向量最近的那一幕常常还是刚才那一幕——排除了才真的换。
+    exclude_scene_id: Optional[str] = None
 
     def resolved_revealed(self) -> Optional[List[str]]:
         return self.revealed_codes or _csv(self.revealed_csv)
@@ -115,11 +118,19 @@ def build_app():
                 body.taste or "一间安静的房",
                 kinds=["scene"],
                 difficulty_max=body.difficulty,
-                n_results=3,
+                n_results=5,
             )
             if not pick["hits"]:
                 return {"ok": False, "reason": "no_scene_match", "retrieval": pick["channels"], "taste": body.taste}
-            scene_id = pick["hits"][0]["scene_id"]
+            chosen = pick["hits"]
+            drop = str(body.exclude_scene_id or "").strip()
+            if drop:
+                fresh = [h for h in chosen if h.get("scene_id") != drop]
+                # 只有 5 个场景，全都排除完了就退回第一名，不让玩家卡在「换不出来」
+                if fresh:
+                    chosen = fresh
+                    pick["excluded_scene_id"] = drop
+            scene_id = chosen[0]["scene_id"]
 
         scene = store.scene_brief(scene_id)
         if not scene:
@@ -158,6 +169,7 @@ def build_app():
                 "scene_query_used": (pick.get("query") if pick else body.scene_id),
                 "structured_filters": {
                     "seekdb_where": {"scene_id": scene_id, "difficulty_max": body.difficulty},
+                    "reroll_excluded_scene_id": pick.get("excluded_scene_id") or "",
                     "sealed_gate": "API 层 _unlock_filter：sealed 且未解锁的条目不进 pack，只把编号+危险度放进 sealed_locked（原文不下发）",
                 },
                 "engine": "seekdb embedded (HNSW cosine + ik fulltext + metadata where)",
