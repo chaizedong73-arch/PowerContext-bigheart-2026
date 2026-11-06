@@ -1,0 +1,143 @@
+# 解锁与结局正向路径取样 · run=20261106-201529 · 工号=A-REVEAL-20261106-201529
+# ARCHIVE_BASE_URL=http://127.0.0.1:8011  PC_BASE_URL=http://127.0.0.1:8000  token=change-me-local-dev(默认占位)（占位串，从环境变量读）
+# 封存目标=RULE-RAD-05（场景 scn_seaside_radio，另有 RULE-RAD-06 保持封存作对照）｜结局目标=END-RAD-01
+
+== 0. 后端健康 /archive/health（GET，故意不校验令牌，只回统计数字）HTTP 200
+{
+  "ok": true,
+  "stats": {
+    "engine": "seekdb(embedded)",
+    "dbPath": "/home/chaizedong/dify-archive-data/seekdb",
+    "collection": "ghost_archive",
+    "dimension": 384,
+    "indexes": {
+      "vector": "HNSW/cosine",
+      "fulltext": "ik"
+    },
+    "count": 90,
+    "embeddingProvider": "sentence-transformers:paraphrase-multilingual-MiniLM-L12-v2"
+  }
+}
+  [PASS] seekdb 档案服务在线（库里 90 条）
+
+== A1. 解锁前 /archive/search（revealed_csv 为空）
+  HTTP 200 命中编号：NPC-RAD-02,END-RAD-01,RULE-RAD-02,RULE-RAD-03,END-RAD-02,END-RAD-03,ITEM-RAD-02
+  通道：{"fused": {"engine": "seekdb.hybrid_search(rank=rrf)", "hits": ["NPC-RAD-02", "END-RAD-01", "RULE-RAD-02", "RULE-RAD-05", "RULE-RAD-03", "END-RAD-02", "END-RAD-03", "ITEM-RAD-02"]}, "vector": {"engine": "seekdb.query(HNSW cosine)", "hits": ["NPC-RAD-02", "END-RAD-01", "RULE-RAD-02", "RULE-RAD-05", "
+  [PASS] 检索返回 200
+  [PASS] RULE-RAD-05 未解锁时不在 hits 里（条文一个字都没下发）  ← NPC-RAD-02,END-RAD-01,RULE-RAD-02,RULE-RAD-03,END-RAD-02,END-RAD-03,ITEM-RAD-02
+
+== A1b. 行动轮响应里的 sealed_gated（解锁候选的唯一来源）
+  sealed_gated=[{"code": "RULE-RAD-05", "danger": 4, "state": "sealed", "from": "hit"}, {"code": "RULE-RAD-06", "danger": 4, "state": "sealed", "from": "scene_rules"}]
+  后端自述：来源 hit=seekdb 三路命中后被 API 层 _unlock_filter 挡下；来源 scene_rules=本场景 where 查询里仍封存的规则。两者只给 code/danger，条文与标题都不下发——主持人据此判断玩家动作是否满足道具写明的用途，满足才允许解锁
+  DSL 行动轮档案块 locked_csv=RULE-RAD-05,RULE-RAD-06｜codes_csv=NPC-RAD-02,END-RAD-01,RULE-RAD-02,RULE-RAD-03,END-RAD-02,END-RAD-03,ITEM-RAD-02
+  [PASS] 被闸门挡下的 RULE-RAD-05 以编号形式回到 locked_csv  ← RULE-RAD-05,RULE-RAD-06
+  [PASS] 但它的条文没有进入可引用白名单
+  [PASS] 行动轮档案块列出了封存编号，且不带标题
+  本轮玩家做出道具用途动作 → revealed_next='RULE-RAD-05' kind=unlock 引用=本轮引用：RULE-RAD-05
+  同一轮，主持人没给编号        → revealed_next='' kind=progress
+  [PASS] 行动轮真的放行了解锁（放得开）
+  [PASS] 刚解锁的编号不会被泄露闸门误抹
+  [PASS] 没有编号就不记账——白名单不是走过场
+
+== A1c. 行动轮响应里的 scene_endings（结局触发条件的唯一稳定来源）
+  后端交回结局：END-RAD-01,END-RAD-02,END-RAD-03
+  后端自述：本场景全部结局条文（本来就不封存）。行动轮检索未必命中，故整条交回，主持人据此判定触发条件是否凑齐；没凑齐不许提前向玩家透露条件
+  [PASS] 带 scene_id 的检索一定附上本场景结局条文
+  [PASS] END-RAD-01 进入行动轮可引用白名单
+  [PASS] END-RAD-02 进入行动轮可引用白名单
+  [PASS] END-RAD-03 进入行动轮可引用白名单
+  [PASS] 命中条目与整条下发的结局不重复计
+  「本轮没有命中」行：## 本轮没有命中：预兆（不得凭空引用）
+  [PASS] 档案块不会一边下发「可引用的」一边说这一类没命中
+  行动轮判定达成 END-RAD-03 → endings_next='END-RAD-03' stage_next=ended kind=ending
+  [PASS] 行动轮（不是派单轮）也能真的封盘
+  [PASS] 结局写进记忆文本
+
+== A2. 解锁前 /archive/scene_pack（revealed_csv 为空）
+  HTTP 200 可读规则：RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04
+  封存中（只有编号与危险度）：[{"code": "RULE-RAD-05", "danger": 4, "state": "sealed"}, {"code": "RULE-RAD-06", "danger": 4, "state": "sealed"}]
+  [PASS] RULE-RAD-05 在 sealed_locked、不在 pack.rule
+  DSL「拼装档案块」渲染出的封存行：## 封存中（条文与标题都没有下发，只有编号与危险度，禁止推测内容）：RULE-RAD-05（危险4）；RULE-RAD-06（危险4）
+  [PASS] 档案块里只有封存编号，没有条文
+
+== A3. /archive/reveal 解锁 RULE-RAD-05
+  HTTP 200 engine=seekdb.get(where metadata)
+  权威原文：[RULE-RAD-05] 报到你父亲那艘船时，拔插头
+  [RULE-RAD-05] 报到你父亲那艘船时，拔插头｜电台报船号时，若船号与你父亲那艘相同，立刻拔插头断电（不是关旋钮），在黑里只说一句你想让他做的事；不能说“回来”，必须说一件具体的活，比如“把网收了”。说完前不许重新通电。｜关键词：船号,断电,黑话
+  [PASS] reveal 返回该封存条文的原文
+  [PASS] 该条目在库里确实标着 sealed=true  ← True
+  [PASS] 不存在的编号 reveal 返回 404（不是静默放行）  ← HTTP 404
+
+== A4. 解锁后 /archive/search（revealed_csv=RULE-RAD-05）
+  HTTP 200 命中编号：NPC-RAD-02,END-RAD-01,RULE-RAD-02,RULE-RAD-05,RULE-RAD-03,END-RAD-02,END-RAD-03,ITEM-RAD-02
+  [PASS] 同一句话、同一个库，只因为传了解锁状态就把条文捞回来了  ← NPC-RAD-02,END-RAD-01,RULE-RAD-02,RULE-RAD-05,RULE-RAD-03,END-RAD-02,END-RAD-03,ITEM-RAD-02
+  命中条目：rank=4 kind=rule score=0.9583
+  [PASS] RULE-RAD-06 仍被封存（解锁是逐条的，不是一键全放）
+
+== A5. 解锁后 /archive/scene_pack（revealed_csv=RULE-RAD-05）
+  可读规则：RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,RULE-RAD-05
+  仍封存：RULE-RAD-06
+  [PASS] 档案包把 RULE-RAD-05 的全文放进可引用区
+  [PASS] RULE-RAD-06 仍在 sealed_locked
+  档案块里该编号出现：True｜codes_csv 含它：True
+  [PASS] 解锁后编号进入主持人可引用白名单
+
+== A6. DSL「裁决校验与记忆文案」的泄露闸门（同一句叙述，解锁前/后各跑一次）
+  解锁前 narration：你把磁带倒回开头。一段还没被写下来的规矩 说得很清楚：三秒空白里出声的人，当晚不许再听电台。
+           抹掉的编号：'RULE-RAD-05'  引用：本轮引用：无
+  解锁后 narration：你把磁带倒回开头。RULE-RAD-05 说得很清楚：三秒空白里出声的人，当晚不许再听电台。
+           抹掉的编号：''  引用：本轮引用：RULE-RAD-05
+  [PASS] 未解锁时编号被换成「一段还没被写下来的规矩」
+  [PASS] 已解锁时同一句话原样保留，闸门不误伤
+  [PASS] 裁决照常记账：violations_next=RULE-RAD-05
+  [PASS] sealed_hint 只允许指向仍封存的编号（RULE-RAD-06）
+  [PASS] 对照封存编号没有出现在可引用区
+
+== B. 结局 END-RAD-01 的正向路径
+  本场景可引用结局编号：END-RAD-01,END-RAD-02,END-RAD-03
+  [PASS] END-RAD-01 在档案包 ending 区（archive_code 已把它并入 codes_csv）
+  mem_kind=unlock stage_next=ended
+  violations_next='RULE-RAD-05' endings_next='END-RAD-01' revealed_next='RULE-RAD-05,RULE-RAD-06'
+  写回记忆：工号 A-REVEAL-20261106-201529 在《礁石村的深夜电台》第 6 轮 当前场景=scn_seaside_radio：抱着收音机在门厅等到鸡叫；解锁封存规则 RULE-RAD-06；达成结局 END-RAD-01
+  [PASS] 达成结局后状态机进入 ended
+  [PASS] 结局编号进入累计状态
+  [PASS] 本轮新解锁的 RULE-RAD-06 并入 revealed_next
+  [PASS] 结局写进了长期记忆的文本
+  [PASS] 记忆文本带 当前场景= 标签（跨会话续局靠它）
+  [PASS] 本轮没有新违规、但有新解锁 → kind=unlock（即便同时达成结局）
+  记忆 kind 的优先级（同一节点，四种本轮事实）：
+    违规+解锁+结局       -> violation
+  [PASS] kind 优先级 violation>unlock>ending>progress：违规+解锁+结局 取 violation
+    解锁+结局          -> unlock
+  [PASS] kind 优先级 violation>unlock>ending>progress：解锁+结局 取 unlock
+    只有结局           -> ending
+  [PASS] kind 优先级 violation>unlock>ending>progress：只有结局 取 ending
+    什么都没有          -> progress
+  [PASS] kind 优先级 violation>unlock>ending>progress：什么都没有 取 progress
+  [PASS] 模型编造不在白名单里的结局编号时不记账、不封盘
+
+== C. 把这两轮事实真写回 PowerContext，再按两条通道读回
+  HTTP 201 scope_id=scp_6z3e2qnxtrz48kzcbm2zyqg4sn
+  [PASS] 建档成功
+  remember(A6 解锁后的违规轮) HTTP 200 kind=violation
+  [PASS] 写入 violation 被接受
+  remember(B 达成结局那一轮) HTTP 200 kind=unlock
+  [PASS] 写入 unlock 被接受
+  prepare HTTP 200｜entries/list HTTP 200（写回 2 条）
+  DSL「解析记忆条目」合并后 memory_count=2 active_scene_id=scn_seaside_radio
+  记忆块：
+- 工号 A-REVEAL-20261106-201529 在《礁石村的深夜电台》第 5 轮 当前场景=scn_seaside_radio：玩家把磁带倒回开头重听；违反 RULE-RAD-05；疑似触碰封存 RULE-RAD-06
+- 工号 A-REVEAL-20261106-201529 在《礁石村的深夜电台》第 6 轮 当前场景=scn_seaside_radio：抱着收音机在门厅等到鸡叫；解锁封存规则 RULE-RAD-06；达成结局 END-RAD-01
+  [PASS] 两条都读回来了（两路并读、去重）
+  [PASS] 从记忆标签解出当前场景=scn_seaside_radio，新会话也能续上这一局
+  [PASS] 解锁/结局事实出现在主持人看到的旧账块里
+
+== D. 这条样例证明了什么、没证明什么
+  证明：封存条文的放行完全由后端与状态驱动——解锁前后是同一个库、同一句话、同一个查询；
+        reveal 只在被调用时返回原文，不存在的编号是 404；
+        DSL 的白名单闸门对「未解锁编号出现在叙述里」做字符串级抹除，对已解锁编号不误伤；
+        结局编号进入状态机与长期记忆，编造的编号不记账；记忆文本带 当前场景= 标签。
+  没证明：这些是后端 + DSL 代码节点层面的取样，不是云端 Dify 一次真实运行的记录；
+        云端运行证据（workflow 日志、节点记录、截图）见 evidence/ 下的线上文件，需与 §4 重导入后的 DSL 对齐。
+
+断言：50 通过，0 失败

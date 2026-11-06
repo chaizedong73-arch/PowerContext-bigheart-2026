@@ -1,0 +1,50 @@
+# 提交文件 ↔ 云端发布版本 一致性取证
+# 生成：tools/cloud_publish_parity.py   取样时间 2026-11-06T21:59:33+0800
+# 云端产物从控制台接口取回，放在仓库外：
+#   CLOUD_APP_YAML      = /mnt/c/Users/chaizedong/AppData/Local/Programs/Qoder CN/scratch/cloud_export_app.yaml
+#   CLOUD_PUBLISHED_JSON= /mnt/c/Users/chaizedong/AppData/Local/Programs/Qoder CN/scratch/cloud_published_workflow.json
+# 约定：隧道域名一律打码；App API 密钥、玩家 scope 都不写进这份文件。
+
+== 1. 文件层面
+   提交的 DSL   midnight_archive_chatflow.yml  74561 bytes  sha256=dff3595e7c2995906124fbe8c8aa329552d273e6b5c69904db450e9a45d4189f
+   提交的 DSL（换行归一成 LF，也就是仓库 blob 的字节）sha256=abf92720b23e78fc566c96efb574e677598ce7a6a51e7b9e7b4609a984e2a971
+   云端导出的   app.yaml  73299 bytes  sha256=42cd2b32b0c52c6c2a975bb2eafdd7cca8514f5987d1488c0f366d4f70753a73
+   （云端导出里两个环境变量的值是本次跑用的隧道地址，按约定打码后另存于 evidence/cloud_export/，所以那份副本的 sha 与原始导出不同）
+
+== 2. 图结构
+   提交：nodes=20 edges=20
+   云端：nodes=20 edges=20
+   节点 id 集合：只在提交里有=无；只在云端里有=无
+   节点 (type,title) 逐个比对：全部一致（20 个）
+   连线 (source,sourceHandle,target,targetHandle) 集合：一致=True；提交独有=无；云端独有=无
+   变量引用 {{#…#}} 去重后：提交 28 个 / 云端 28 个；提交独有=无；云端独有=无
+
+== 3. 节点内部字段（只列路径，不印值）
+   实质差异字段：0 个（提交独有 0 / 云端独有 0 / 值不同 0）
+   云端自己补的排版/默认字段：0 个（不计入差异，例如 height/width/retry_config/model 细节）
+
+== 4. 环境变量（名字必须一致，值按部署环境不同）
+   提交：['ARCHIVE_BASE_URL', 'ARCHIVE_TOKEN', 'PC_BASE_URL', 'PC_SCOPE_FALLBACK', 'ARCHIVE_TOP_K']
+   云端：['ARCHIVE_BASE_URL', 'ARCHIVE_TOKEN', 'PC_BASE_URL', 'PC_SCOPE_FALLBACK', 'ARCHIVE_TOP_K']
+   ARCHIVE_BASE_URL     提交=http://127.0.0.1:8011  云端=https://<quick-tunnel 域名·按约定不提交> （隧道地址，值已打码）
+   ARCHIVE_TOKEN        值相同
+   PC_BASE_URL          提交=http://127.0.0.1:8000  云端=https://<quick-tunnel 域名·按约定不提交> （隧道地址，值已打码）
+   PC_SCOPE_FALLBACK    值相同
+   ARCHIVE_TOP_K        值相同
+
+== 5. 运行记录能不能落到这个发布版本上
+   控制台 workflows/publish 返回：id=375be8cc-0c15-4050-953d-c3d34c7e6689  version=2026-11-06 13:45:23.779248
+   已发布版本图：nodes=20 edges=20
+   cloud_run_s10_reroll_words.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 4 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s11_cross_conversation.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 3 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s12_unlock_positive.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 2 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s13_unlock_cloud.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 4 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s14_ending_bad.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 3 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s15_taste_scene.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 1 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s16_difficulty_cap.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 2 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s17_leak_probe.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 3 个；sha256(dsl) 头=与当前提交一致
+   cloud_run_s3_same_conversation.txt：workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689 → 与发布版本对得上；workflow_run_id 2 个；sha256(dsl) 头=与当前提交一致
+
+== 6. 结论
+   提交 DSL 与云端导出/发布版本结构一致；差异只在环境变量取值（本地占位 vs 隧道地址）与云端补的排版字段。
+   仍未纳入比对：模型绑定的具体版本（云端插件市场 deepseek 0.0.26）、环境变量值本身。

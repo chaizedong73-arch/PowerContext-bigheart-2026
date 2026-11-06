@@ -209,8 +209,10 @@ def main() -> int:
             secret = "（隧道地址，值已打码）" if HOST_RE.search(b) else ""
             lines.append("   %-20s 提交=%s  云端=%s %s" % (name, redact(a) or "(空)", redact(b) or "(空)", secret))
 
+    graph_ok = ok
     lines.append("")
     lines.append("== 5. 运行记录能不能落到这个发布版本上")
+    run_ok = True
     if pub_json and Path(pub_json).is_file():
         pub = json.loads(Path(pub_json).read_text(encoding="utf-8"))
         wid, ver = pub.get("id"), pub.get("version")
@@ -220,7 +222,7 @@ def main() -> int:
         lines.append("   已发布版本图：nodes=%d edges=%d" % (len(pg.get("nodes") or []), len(pg.get("edges") or [])))
         traces = sorted(EVIDENCE.glob("cloud_run_*.txt"))
         if not traces:
-            ok = False
+            run_ok = False
             lines.append("   !! evidence/ 里还没有 cloud_run_*.txt")
         for t in traces:
             text = t.read_text(encoding="utf-8")
@@ -231,15 +233,21 @@ def main() -> int:
                          % (t.name, ",".join(ids) or "-", verdict, len(runs),
                             "与当前提交一致" if sha256(DSL) in text else "早于当前提交（重新取样即可刷新）"))
             if ids and set(ids) != {wid}:
-                ok = False
+                run_ok = False
     else:
-        ok = False
+        run_ok = False
         lines.append("   !! 未设置 CLOUD_PUBLISHED_JSON，无法把运行记录钉到发布版本上")
 
+    ok = graph_ok and run_ok
     lines.append("")
     lines.append("== 6. 结论")
-    lines.append("   %s" % ("提交 DSL 与云端导出/发布版本结构一致；差异只在环境变量取值（本地占位 vs 隧道地址）与云端补的排版字段。"
-                            if ok else "仍有实质差异，见上面加 · 的字段，不能宣称线上跑的就是提交文件。"))
+    if ok:
+        lines.append("   提交 DSL 与云端导出/发布版本结构一致；差异只在环境变量取值（本地占位 vs 隧道地址）与云端补的排版字段。")
+    elif graph_ok:
+        lines.append("   图结构/变量引用/节点字段已经对齐（第 2–4 节 0 差异），但第 5 节的运行记录还钉在上一个发布版本上——"
+                     "重跑 tools/cloud_run_trace.py 的取证场景即可闭环；在此之前不能宣称线上跑的就是提交文件。")
+    else:
+        lines.append("   仍有实质差异，见上面加 · 的字段，不能宣称线上跑的就是提交文件。")
     lines.append("   仍未纳入比对：模型绑定的具体版本（云端插件市场 deepseek 0.0.26）、环境变量值本身。")
 
     text = "\n".join(lines) + "\n"

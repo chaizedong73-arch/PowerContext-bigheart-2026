@@ -143,6 +143,83 @@ def main() -> int:
     check(SEALED not in h1, "%s 未解锁时不在 hits 里（条文一个字都没下发）" % SEALED, ",".join(h1))
     say("")
 
+    # ---- A1b 行动轮的解锁候选从哪来 ----
+    # 判题说的是「只验了挡得住，没验放得开」。放开的前提是：后端在挡下条文的同时，
+    # 把「哪些编号还封着」交回上游，否则行动轮的档案块里 locked_csv 恒为空，
+    # 「裁决校验与记忆文案」的 _only(revealed_now, locked) 会把任何解锁都筛掉——
+    # 云端 s12/s13 第一版就卡在这里，状态条的「🔓 已解锁封存」永远是空的。
+    say("== A1b. 行动轮响应里的 sealed_gated（解锁候选的唯一来源）")
+    say("  sealed_gated=%s" % json.dumps(s1.get("sealed_gated"), ensure_ascii=False))
+    say("  后端自述：%s" % s1.get("sealed_gated_note"))
+    arc_node, _ = load_code_node("archive_code")
+    act_blk = arc_node(body=json.dumps(s1, ensure_ascii=False), revealed_in="",
+                       scene_id_in=SCENE, scene_title_in="礁石村的深夜电台")
+    gated = [c for c in act_blk["locked_csv"].split(",") if c]
+    say("  DSL 行动轮档案块 locked_csv=%s｜codes_csv=%s" % (act_blk["locked_csv"], act_blk["codes_csv"]))
+    check(SEALED in gated, "被闸门挡下的 %s 以编号形式回到 locked_csv" % SEALED, ",".join(gated))
+    check(SEALED not in act_blk["codes_csv"].split(","), "但它的条文没有进入可引用白名单")
+    check("封存中" in act_blk["block"] and SEALED + "《" not in act_blk["block"],
+          "行动轮档案块列出了封存编号，且不带标题")
+    host_node, _ = load_code_node("host_code")
+
+    def act_turn(revealed_now):
+        payload = {"narration": "你一把拔掉收音机的插头，在黑里只说了一句「把网收了」。",
+                   "triggered": [], "near": [], "ending": "", "sealed_hint": "",
+                   "revealed_now": revealed_now, "mood": "uneasy"}
+        return host_node(raw=json.dumps(payload, ensure_ascii=False), codes_csv=act_blk["codes_csv"],
+                         locked_csv=act_blk["locked_csv"], revealed_in="", violations_in="",
+                         endings_in="", turn=2, scene_title=act_blk["scene_title"], scene_id=SCENE,
+                         player_id=PLAYER, action="按 ITEM-RAD-01 的用途断电并说话", intent="act",
+                         scope_id="scp_sample")
+
+    act_out = act_turn([SEALED])
+    act_none = act_turn([])
+    say("  本轮玩家做出道具用途动作 → revealed_next=%r kind=%s 引用=%s"
+        % (act_out["revealed_next"], act_out["mem_kind"], act_out["cite_line"]))
+    say("  同一轮，主持人没给编号        → revealed_next=%r kind=%s"
+        % (act_none["revealed_next"], act_none["mem_kind"]))
+    check(act_out["revealed_next"] == SEALED and act_out["mem_kind"] == "unlock",
+          "行动轮真的放行了解锁（放得开）")
+    check(SEALED not in act_out["narration_redacted"], "刚解锁的编号不会被泄露闸门误抹")
+    check(act_none["revealed_next"] == "" and act_none["mem_kind"] == "progress",
+          "没有编号就不记账——白名单不是走过场")
+    say("")
+
+    # ---- A1c 行动轮也要攥得住结局条文 ----
+    # 结局不封存，但挤不挤得进 top_k 全看措辞：撞不中时主持人手里没有触发条件全文，
+    # 铁律 5「条件凑齐才给结局」就变成永远不许封盘。后端按 scene_id 整条交回 scene_endings。
+    say("== A1c. 行动轮响应里的 scene_endings（结局触发条件的唯一稳定来源）")
+    ends_sent = [e.get("code") for e in (s1.get("scene_endings") or [])]
+    say("  后端交回结局：%s" % ",".join([c for c in ends_sent if c]))
+    say("  后端自述：%s" % s1.get("scene_endings_note"))
+    check(bool(ends_sent), "带 scene_id 的检索一定附上本场景结局条文")
+    for c in ends_sent:
+        check(c in act_blk["codes_csv"].split(","), "%s 进入行动轮可引用白名单" % c)
+    check(len([c for c in act_blk["codes_csv"].split(",") if c])
+          == len(set([c for c in act_blk["codes_csv"].split(",") if c])),
+          "命中条目与整条下发的结局不重复计")
+    miss = next((l for l in act_blk["block"].splitlines() if l.startswith("## 本轮没有命中")), "")
+    contradict = [k for k in ("规则", "预兆", "道具", "NPC", "结局")
+                  if ("可引用的" + k) in act_blk["block"] and miss and k in miss]
+    say("  「本轮没有命中」行：%s" % (miss or "（没有这一行）"))
+    check(not contradict, "档案块不会一边下发「可引用的%s」一边说这一类没命中" % "、".join(contradict))
+
+    good_end = next((c for c in ends_sent if c == "END-RAD-03"), ends_sent[-1] if ends_sent else "")
+    end_turn = host_node(raw=json.dumps({"narration": "潮声停了整整三分钟，玻璃内侧露出外面的黑。",
+                                         "triggered": [], "near": [], "ending": good_end,
+                                         "sealed_hint": "", "revealed_now": [], "mood": "释然"},
+                                        ensure_ascii=False),
+                         codes_csv=act_blk["codes_csv"], locked_csv=act_blk["locked_csv"],
+                         revealed_in="", violations_in="", endings_in="", turn=3,
+                         scene_title=act_blk["scene_title"], scene_id=SCENE, player_id=PLAYER,
+                         action="煤油三分钟里擦净盐霜并挂出毛巾", intent="act", scope_id="scp_sample")
+    say("  行动轮判定达成 %s → endings_next=%r stage_next=%s kind=%s"
+        % (good_end, end_turn["endings_next"], end_turn["stage_next"], end_turn["mem_kind"]))
+    check(end_turn["endings_next"] == good_end and end_turn["stage_next"] == "ended",
+          "行动轮（不是派单轮）也能真的封盘")
+    check("达成结局 " + good_end in end_turn["mem_text"], "结局写进记忆文本")
+    say("")
+
     # ---- A2 解锁前：派单包只给编号+危险度 ----
     say("== A2. 解锁前 /archive/scene_pack（revealed_csv 为空）")
     st, p1 = arch("/archive/scene_pack", {"taste": "", "scene_id": SCENE, "revealed_csv": ""})
@@ -151,8 +228,6 @@ def main() -> int:
     say("  HTTP %s 可读规则：%s" % (st, ",".join(rules1)))
     say("  封存中（只有编号与危险度）：%s" % json.dumps(p1.get("sealed_locked"), ensure_ascii=False))
     check(SEALED in locked1 and SEALED not in rules1, "%s 在 sealed_locked、不在 pack.rule" % SEALED)
-
-    arc_node, _ = load_code_node("archive_code")
     blk1 = arc_node(body=json.dumps(p1, ensure_ascii=False), revealed_in="", scene_id_in="", scene_title_in="")
     seal_line = next((l for l in blk1["block"].splitlines() if l.startswith("## 封存中")), "")
     say("  DSL「拼装档案块」渲染出的封存行：%s" % seal_line[:200])
@@ -205,7 +280,7 @@ def main() -> int:
 
     # ---- A6 叙述闸门：同一段话，解锁前后待遇不同 ----
     say("== A6. DSL「裁决校验与记忆文案」的泄露闸门（同一句叙述，解锁前/后各跑一次）")
-    host, host_params = load_code_node("host_code")
+    host = host_node  # A1b 已经把提交文件里那段节点代码 exec 过一次了
     narration = ("你把磁带倒回开头。%s 说得很清楚：三秒空白里出声的人，当晚不许再听电台。" % SEALED)
     ans = {"narration": narration, "triggered": [SEALED], "near": [], "ending": "",
            "sealed_hint": OTHER_SEALED, "revealed_now": [], "mood": "阴冷"}

@@ -1,0 +1,46 @@
+# 后端换单排除对照 · 取样时间 2026-11-05T23:43:14+0800
+# 后端 = http://127.0.0.1:8011（seekdb embedded，令牌只从环境变量 ARCHIVE_TOKEN 读，本文件不含凭据）
+# 被排除的「当前幕」= scn_seaside_radio；两次调用之间只差 exclude_scene_id 这一个参数
+# 请求体字段定义见 dify/archive/main.py 的 ScenePackBody，响应里的回显字段是 retrieval.structured_filters.reroll_excluded_scene_id
+
+A 玩家原话 | 不排除
+   请求体   = {"taste": "换个场景，重新派单吧。", "scene_id": "", "revealed_csv": ""}
+   fused 名次 = ['scn_convenience_store', 'scn_office_elevator', 'scn_study_hall', 'scn_seaside_radio', 'scn_night_train']
+   选中场景 = scn_convenience_store（白杨便利的第十一夜）｜可读规则 4 条｜封存未解锁 ['RULE-KIO-05', 'RULE-KIO-06']
+   后端回显 reroll_excluded_scene_id = ''
+
+A 玩家原话 | 排除当前幕
+   请求体   = {"taste": "换个场景，重新派单吧。", "scene_id": "", "revealed_csv": "", "exclude_scene_id": "scn_seaside_radio"}
+   fused 名次 = ['scn_convenience_store', 'scn_office_elevator', 'scn_study_hall', 'scn_seaside_radio', 'scn_night_train']
+   选中场景 = scn_convenience_store（白杨便利的第十一夜）｜可读规则 4 条｜封存未解锁 ['RULE-KIO-05', 'RULE-KIO-06']
+   后端回显 reroll_excluded_scene_id = 'scn_seaside_radio'
+
+结论 · A 玩家原话：不排除=scn_convenience_store → 排除后=scn_convenience_store；这一句本身就不指向上一幕，排除与否都换得掉
+
+B DSL 实际发的（原话+意图关键词） | 不排除
+   请求体   = {"taste": "换个场景，重新派单吧。 深夜 电台 海边 声音", "scene_id": "", "revealed_csv": ""}
+   fused 名次 = ['scn_seaside_radio', 'scn_study_hall', 'scn_convenience_store', 'scn_night_train', 'scn_office_elevator']
+   选中场景 = scn_seaside_radio（礁石村的深夜电台）｜可读规则 4 条｜封存未解锁 ['RULE-RAD-05', 'RULE-RAD-06']
+   后端回显 reroll_excluded_scene_id = ''
+
+B DSL 实际发的（原话+意图关键词） | 排除当前幕
+   请求体   = {"taste": "换个场景，重新派单吧。 深夜 电台 海边 声音", "scene_id": "", "revealed_csv": "", "exclude_scene_id": "scn_seaside_radio"}
+   fused 名次 = ['scn_seaside_radio', 'scn_study_hall', 'scn_convenience_store', 'scn_night_train', 'scn_office_elevator']
+   选中场景 = scn_study_hall（北楼地下的通宵自习室）｜可读规则 4 条｜封存未解锁 ['RULE-STU-05', 'RULE-STU-06']
+   后端回显 reroll_excluded_scene_id = 'scn_seaside_radio'
+
+结论 · B DSL 实际发的（原话+意图关键词）：不排除=scn_seaside_radio → 排除后=scn_study_hall；不排除时确实卡在上一幕，排除后才换得掉——这就是这条修复的证据
+
+C 换单但玩家没给口味词 | 不排除
+   请求体   = {"taste": "换个场景。", "scene_id": "", "revealed_csv": ""}
+   fused 名次 = ['scn_study_hall', 'scn_convenience_store', 'scn_office_elevator', 'scn_seaside_radio', 'scn_night_train']
+   选中场景 = scn_study_hall（北楼地下的通宵自习室）｜可读规则 4 条｜封存未解锁 ['RULE-STU-05', 'RULE-STU-06']
+   后端回显 reroll_excluded_scene_id = ''
+
+C 换单但玩家没给口味词 | 排除当前幕
+   请求体   = {"taste": "换个场景。", "scene_id": "", "revealed_csv": "", "exclude_scene_id": "scn_seaside_radio"}
+   fused 名次 = ['scn_study_hall', 'scn_convenience_store', 'scn_office_elevator', 'scn_seaside_radio', 'scn_night_train']
+   选中场景 = scn_study_hall（北楼地下的通宵自习室）｜可读规则 4 条｜封存未解锁 ['RULE-STU-05', 'RULE-STU-06']
+   后端回显 reroll_excluded_scene_id = 'scn_seaside_radio'
+
+结论 · C 换单但玩家没给口味词：不排除=scn_study_hall → 排除后=scn_study_hall；这一句本身就不指向上一幕，排除与否都换得掉

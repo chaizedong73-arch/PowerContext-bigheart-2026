@@ -253,6 +253,34 @@ def main() -> int:
                                         "difficulty": 0}, ensure_ascii=False), query=q)["reroll"]
             if got != want:
                 err(f"intent_code reroll(«{q}»)={got}, expected {want}")
+
+        # 难度同样只认原话：云端 s16 实测同一句「难度中等」有时被模型抽成 3、有时漏成 0，
+        # 漏抽等于撤掉后端的难度过滤，要中等的玩家直接派到了难度 5 的便利店。
+        for q, want in [("我喜欢跟声音有关的线索，难度只要最简单的。", 1),
+                        ("我喜欢跟声音有关的线索，难度中等。", 3),
+                        ("给我派个活，我怕黑，喜欢跟声音有关的线索，难度中等。", 3),
+                        ("来个最难的，我胆子大，越恐怖越好。", 5),
+                        # 先说出口的那一档才算要求，后半句的否定是补充说明。
+                        ("难度中等，别太恐怖。", 3),
+                        ("不要太恐怖，给我换个轻松点的活。", 1),
+                        # 名词在词的后面也算（云端 s10 第 1 轮就是这句「中等难度」）。
+                        ("给我派个跟声音有关的活，中等难度。", 3),
+                        # 评价当前这一幕 ≠ 要求下一幕：这句必须留给模型，不能按字面压到 1。
+                        ("这个太简单，换一个难的。", 0),
+                        ("随便派一个。", 0), ("", 0)]:
+            got = intent(raw=json.dumps({"intent": "start", "keywords": ["声音"],
+                                        "action": "玩家要求派单", "difficulty": 0},
+                                       ensure_ascii=False), query=q)["difficulty"]
+            if got != want:
+                err(f"intent_code difficulty(«{q}»)={got}, expected {want}")
+        # 模型抽对了也不能被原话带偏；但行动轮的叙述词不该变成难度上限。
+        if intent(raw=json.dumps({"intent": "start", "difficulty": 2}, ensure_ascii=False),
+                  query="难度中等")["difficulty"] != 3:
+            err("intent_code kept the model's difficulty over the player's literal 难度中等")
+        act_diff = intent(raw=json.dumps({"intent": "act", "difficulty": 0}, ensure_ascii=False),
+                          query="我像往常一样推开便利店的门")["difficulty"]
+        if act_diff != 0:
+            err("intent_code let an act-turn narration word set the difficulty cap")
         resume_out = compiled["req2_code"][0](
             query="继续", action="玩家打算继续查看电台", keywords_csv="电台,磁带", scene_id="",
             revealed="", reroll=0, top_k=6, difficulty=0, remembered_scene="scn_seaside_radio")
@@ -273,6 +301,17 @@ def main() -> int:
             err(f"reroll must exclude the previous scene for the backend: {excluded}")
         if excluded.get("revealed_csv") != "RULE-RAD-05":
             err(f"reroll dropped the already-unsealed codes: {excluded}")
+        # 场景来源得能区分「开局」和「换单」：新会话第一回合没有上一幕可排除，
+        # 早先一律标 reroll，取证里看着像每局开局都被重派了一次。
+        for label, kw, want in (
+                ("fresh 开局", dict(query="给我派个活", scene_id="", reroll=0, remembered_scene=""), "fresh"),
+                ("续会话", dict(query="继续", scene_id="scn_seaside_radio", reroll=0, remembered_scene=""), "conversation"),
+                ("跨会话续局", dict(query="继续", scene_id="", reroll=0, remembered_scene="scn_seaside_radio"), "memory"),
+                ("显式换单", dict(query="换个场景", scene_id="scn_seaside_radio", reroll=1, remembered_scene=""), "reroll")):
+            got = compiled["req2_code"][0](action="玩家行动", keywords_csv="", revealed="",
+                                          top_k=6, difficulty=0, **kw)["scene_source"]
+            if got != want:
+                err(f"scene_source({label})={got}, expected {want}")
 
         for label, body in (("scene", scene_body), ("search", search_body)):
             if body is None:
@@ -422,6 +461,124 @@ def main() -> int:
                     "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。",
                     "主持人笔下的那行字被潮气泡花了，没能递到你手上。请把动作说得更具体些，或换个说法再来一次。"):
                 err(f"host_code[{label}] 兜底叙述不该是模型原文: {out['narration'][:160]!r}")
+
+        # 云端实测的另一种坏形状：主持人节点开着对话记忆（window=10）时会照着自己上一轮的
+        # 「玩家可见文本」续写——状态条都拼全了，却没有裁决 JSON（cloud_run_s10 第 3 轮）。
+        # 那时整轮塌成固定文案，玩家看到「主持人没有回应」。_prose 只认 think 成对闭合后的
+        # 正文：截掉模型自己拼的状态条，封存编号仍要过同一道闸门；没有闭合标签照旧回固定文案。
+        footer = ("\n\n---\n🪪 工号 `A-1101` ｜ 🎬 测试场景 ｜ 第 4 轮 ｜ 心情 uneasy\n"
+                  "📁 档案引用：本轮引用：无\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_test_1`）\n")
+        for label, messy, must_keep in (
+                ("续写状态条+闭合思考", reasoning + "\n</think>\n指针停在“2”，女声开始报歌名，报完留三秒空白。"
+                 "铁皮壳越来越凉，像刚被人从海里捞出来。你迟早会撞上 " + good_locked + "，别回头。"
+                 "你可以把旋钮逆时针旋到底，也可以伸手按住它不让它跳。" + footer, "指针停在"),
+                ("纯叙述没有JSON", "指针停在“2”，女声开始报歌名，报完留三秒空白，连电流都轻下去。"
+                 "屋外的潮声把窗框震得打颤，盐味从门缝里挤进来。你可以把旋钮逆时针旋到底，"
+                 "或者伸手按住它——只是你迟早会撞上 " + good_locked + "，这一条还没被写下来。", "三秒空白")):
+            out = run_host({"narration": ""}, raw=messy)
+            say = out["narration"]
+            if must_keep not in say:
+                err(f"host_code[{label}] 没保住可用叙述: {say[:160]!r}")
+            if "🪪" in say or "已写入 PowerContext" in say:
+                err(f"host_code[{label}] 把模型自己拼的状态条吐给了玩家: {say[:200]!r}")
+            if "think>" in say or "dify-deepseek-reasoning" in say or "我不能" in say:
+                err(f"host_code[{label}] 泄露了推理正文: {say[:160]!r}")
+            if good_locked in say or out["narration_redacted"] != good_locked:
+                err(f"host_code[{label}] 正文兜底绕过了封存闸门: {say[:120]!r} / {out['narration_redacted']!r}")
+        print("\n=== host_code[正文兜底] 两条坏形状都保住叙述、截掉状态条、过了编号闸门")
+
+        # 行动轮（search 分支）必须把「仍封存」的编号交回主持人。云端 s12/s13 实测过一版
+        # locked_csv 恒为空，于是 _only(revealed_now, locked) 永远筛光——解锁在这条链路上
+        # 结构性不可能（状态条「🔓 已解锁封存」永远是空的）。fixture 是后端真实响应，
+        # 里面的 sealed_gated 来自 seekdb 命中被挡 + 本场景 where 查询，所以这条钉的是真链路。
+        if search_body:
+            s_arc = compiled["archive_code"][0](body=search_body, revealed_in="",
+                                                scene_id_in="scn_office_elevator",
+                                                scene_title_in="末班电梯只停偶数层")
+            s_locked = [c for c in s_arc["locked_csv"].split(",") if c]
+            if not s_locked:
+                err("act-turn archive block carries no sealed codes: unlock can never fire")
+            if "封存中" not in s_arc["block"]:
+                err("act-turn block has no 封存中 section for the host to reason about")
+            for c in s_locked:
+                if c + "《" in s_arc["block"]:
+                    err(f"act-turn sealed {c} carries a title (spoiler)")
+                if c in s_arc["codes_csv"].split(","):
+                    err(f"act-turn sealed {c} also citable")
+            unlock = host(raw=json.dumps({"narration": "你把硬皮本翻到凌晨 0:00 那一行，只喊了一个姓。",
+                                          "triggered": [], "near": [], "sealed_hint": "",
+                                          "revealed_now": [s_locked[0]], "ending": "", "mood": "uneasy"},
+                                         ensure_ascii=False),
+                          codes_csv=s_arc["codes_csv"], locked_csv=s_arc["locked_csv"], revealed_in="",
+                          violations_in="", endings_in="", turn=2, scene_title=s_arc["scene_title"],
+                          scene_id=s_arc["scene_id"], player_id="A-1101",
+                          action="玩家读了巡更记录本", intent="act", scope_id="scp_test_1")
+            if unlock["revealed_next"] != s_locked[0] or unlock["mem_kind"] != "unlock":
+                err(f"act-turn unlock did not survive the gate: {unlock['revealed_next']!r} / {unlock['mem_kind']!r}")
+            if "解锁封存规则 " + s_locked[0] not in unlock["mem_text"]:
+                err(f"memory text does not record the act-turn unlock: {unlock['mem_text'][:200]}")
+            if s_locked[0] in unlock["narration_redacted"]:
+                err("just-unsealed code was scrubbed out of the narration")
+            print(f"\n=== host_code[行动轮解锁] locked={s_locked} -> "
+                  f"revealed_next={unlock['revealed_next']} kind={unlock['mem_kind']}")
+
+            # 结局条文同样得每轮都攥在主持人手里。行动轮的 top_k 撞不撞得中结局全看措辞，
+            # 撞不中时「铁律 5：条件凑齐才给结局」就变成永远不许封盘——达成结局在云端是结构性
+            # 不可能。后端按 scene_id 整条交回 scene_endings，这里钉注入、白名单与不重复。
+            d_search = json.loads(search_body)
+            s_hits = {h.get("code") for h in (d_search.get("hits") or [])}
+            s_ends = [e.get("code") for e in (d_search.get("scene_endings") or []) if e.get("code")]
+            if not s_ends:
+                err("search 响应没有 scene_endings：行动轮主持人拿不到结局触发条件全文")
+            s_codes = [c for c in s_arc["codes_csv"].split(",") if c]
+            for c in s_ends:
+                if c not in s_codes:
+                    err(f"结局条文 {c} 没进可引用白名单，铁律 5 永远判不出这一局")
+            if len(s_codes) != len(set(s_codes)):
+                err(f"命中与整条下发的结局重叠，codes_csv 出现重复编号: {s_codes}")
+            if "不得提前向玩家透露" not in s_arc["block"]:
+                err("行动轮结局区没有「不得提前透露条件」的约束")
+            ending = host(raw=json.dumps({"narration": "你把毛巾挂向海风，潮声停了整整三分钟。",
+                                          "triggered": [], "near": [], "sealed_hint": "",
+                                          "revealed_now": [], "ending": s_ends[-1], "mood": "calm"},
+                                         ensure_ascii=False),
+                          codes_csv=s_arc["codes_csv"], locked_csv=s_arc["locked_csv"], revealed_in="",
+                          violations_in="", endings_in="", turn=3, scene_title=s_arc["scene_title"],
+                          scene_id=s_arc["scene_id"], player_id="A-1101",
+                          action="玩家解开盐霜", intent="act", scope_id="scp_test_1")
+            if ending["endings_next"] != s_ends[-1] or ending["stage_next"] != "ended":
+                err(f"行动轮达成的结局没有封盘: {ending['endings_next']!r} / {ending['stage_next']!r}")
+            if ending["mem_kind"] != "ending" or "达成结局 " + s_ends[-1] not in ending["mem_text"]:
+                err(f"结局没写进长期记忆: {ending['mem_kind']} / {ending['mem_text'][:160]}")
+            print(f"=== host_code[行动轮结局] {s_ends} -> endings_next={ending['endings_next']} "
+                  f"stage={ending['stage_next']} kind={ending['mem_kind']}")
+
+            # 「本轮没有命中」这一段以前在 pop 之后才算，等于每轮都把五类全列一遍——
+            # 一边把条文交给主持人、一边告诉他这些类别没命中，自相矛盾。现在按实际出现的种类算。
+            if "本轮没有命中" in s_arc["block"]:
+                err(f"五类俱全的档案块仍报「没有命中」: {s_arc['block'][-260:]!r}")
+            only_rule = compiled["archive_code"][0](
+                body=json.dumps({"hits": [{"code": "RULE-X-01", "kind": "rule",
+                                           "title": "只有一条", "document": "只有规则命中"}],
+                                 "channels": {}, "tookMs": 1}, ensure_ascii=False),
+                revealed_in="", scene_id_in="scn_x", scene_title_in="X")["block"]
+            miss_line = next((l for l in only_rule.splitlines() if l.startswith("## 本轮没有命中")), "")
+            if "规则" in miss_line or "结局" not in miss_line:
+                err(f"「本轮没有命中」类别算错: {miss_line!r}")
+
+        # 裁决 JSON 被 max_tokens 截断（云端 s13 第 3 轮实测：completion_tokens 2240、
+        # 整串 loads 失败、玩家收到兜底文案）时不该把这一局判成空转：叙述要从原文抠回来。
+        cut = '{"narration": "潮水退下去的时候，东屋玻璃内侧多了一圈白的。"你把毛巾挂向海风来的方向，窗'
+        out = run_host({"narration": ""}, raw=cut)
+        if "东屋玻璃" not in out["narration"]:
+            err(f"截断的裁决没有救回叙述: {out['narration'][:120]!r}")
+        quoted = ('{"narration": "老板“啧”了一声，把拖鞋收走了。", "triggered": ["%s"], '
+                  '"near": [], "sealed_hint": "", "revealed_now": [], "ending": "", "mood": "uneasy"}' % good_rule)
+        out = run_host({"narration": ""}, raw=quoted)
+        if "拖鞋" not in out["narration"] or good_rule not in out["violations_next"]:
+            err(f"叙述里的引号把裁决弄丢了: {out['narration'][:120]!r} / {out['violations_next']!r}")
+        if good_locked in out["narration"] or "RULE-RAD-05" in out["narration"]:
+            err("salvage must not resurrect the model's reasoning text")
 
         # bad JSON must not explode
         ok_intent = compiled["intent_code"][0](raw='{"intent":"START","keywords":["电梯","对讲机","门"],'

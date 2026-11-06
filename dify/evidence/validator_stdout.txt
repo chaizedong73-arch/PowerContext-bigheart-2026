@@ -1,4 +1,4 @@
-nodes=18 edges=18
+nodes=20 edges=20
   start          start                派单台
   intent_llm     llm                  意图与关键词抽取
   intent_code    code                 解析分类结果
@@ -6,7 +6,9 @@ nodes=18 edges=18
   scope_http     http-request         建立/复用工号档案袋
   scope_code     code                 取回 scope_id
   memory_http    http-request         读取玩家记忆
+  memory_list_http http-request         按顺序读档案袋
   memory_code    code                 解析记忆条目
+  req2_code      code                 组装检索请求体
   route          if-else              派单还是行动
   scene_http     http-request         取场景档案包(seekdb)
   search_http    http-request         检索相关档案(seekdb)
@@ -17,28 +19,30 @@ nodes=18 edges=18
   state_assign   assigner             更新玩家状态
   remember_http  http-request         写回玩家记忆
   reply          answer               回复玩家
-distinct variable references = 27
-scope_code -> {"scope_id": "scp_55ts13y6r9teh26gz7bara3xgy", "scope_state": "created_or_reused", "prepare_body": "{\"scope_id\": \"scp_55ts13y6r9teh26gz7bara3xgy\", \"query\": \"A-1101 违规 结局 偏好 电梯,对讲机\", \"max_bytes\": 6000}"}
-memory_code -> count= 2
+distinct variable references = 28
+scope_code -> {"scope_id": "scp_55ts13y6r9teh26gz7bara3xgy", "scope_state": "created_or_reused", "prepare_body": "{\"scope_id\": \"scp_55ts13y6r9teh26gz7bara3xgy\", \"query\": \"A-1101 电梯,对讲机 违反 违规 解锁 封存 结局 预兆\", \"max_bytes\": 6000}", "list_body": "{\"scope_id\": \"scp_55ts13y6r9teh26gz7bara3xgy\", \"include_inactive\": false}"}
+memory_code -> count= 4 active_scene_id= scn_office_elevator
 - 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 2 轮：解锁封存规则 RULE-ELV-04
+- 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 2 轮 当前场景=scn_office_elevator：解锁封存规则 RULE-ELV-04
 - 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 1 轮：玩家打算按下 13 层；违反 RULE-ELV-02
+- 工号 A-VALIDATE-1 在《末班电梯只停偶数层》第 1 轮 当前场景=scn_office_elevator：玩家打算按下 13 层；违反 RULE-ELV-02
 
 === archive_code[scene] cite: 4 条规则可读｜封存 2 条
-codes_csv=RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03
-locked_csv=RULE-RAD-05,RULE-RAD-06
-# 委托：礁石村的深夜电台（这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。）
-## 场景正文：礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。
-## 主持口吻：主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。
-## 难度 2｜危险 3
+codes_csv=RULE-KIO-01,RULE-KIO-02,RULE-KIO-03,RULE-KIO-04,ITEM-KIO-01,ITEM-KIO-02,ITEM-KIO-03,NPC-KIO-01,NPC-KIO-02,OMEN-KIO-01,OMEN-KIO-02,OMEN-KIO-03,END-KIO-01,END-KIO-02,END-KIO-03
+locked_csv=RULE-KIO-05,RULE-KIO-06
+# 委托：白杨便利的第十一夜（手册第7页写着：04:00 后别给穿拖鞋的客人结账——可今晚除了你，全员拖鞋。）
+## 场景正文：城北环一路的24小时便利店白杨便利，玻璃门正对公交站。冷柜压缩机每90秒启一次，关东煮的汤在凌晨会起一层白膜，空气里汤料的咸味混着新塑料袋的滑石粉味。手册是三本活页装订，第十一页被撕掉了；收银机下压着上一任留下的字条，他在这里只上到第11天就再没来过。03:47 你补完货架抬头，店里还剩四个客人：买烟的、坐窗边喝汤的、在冷柜前一直没开门的、在门口换零钱的，四个人都穿拖鞋。你要熬到06:00，把交接班单签字交给早班。
+## 主持口吻：主持人像另一个熬夜班的人，语速慢、带自嘲。你读手册时它会把字条一字不差念给你听，念完补一句：“我念完了，没说我信。”
+## 难度 5｜危险 5
 ## 可引用规则（只有这些编号是有效的裁决依据）
-- RULE-RAD-01《先旋到零，再决定听不听》：[RULE-RAD-01] 先旋到零，再决定听不听｜收音机自己响起时，先把音量旋钮逆时针旋到底再决定听不听。若旋钮在“1”或以上而你听见自己的名字，必须立刻转到别的频率，哪怕只剩噪音。留在原频率等于回答“我在”。｜关键词：音量,换台,名字
-- RULE-RAD-02《三秒空白里不许出声》：[RULE-RAD-02] 三秒空白里不许出声｜女声报完歌名会留三秒空白。空白里你出声哼了哪个音，第二天她就点你的歌。被点歌的人当晚不能再听电台，且必须在天亮前把收音机搬到别的房间。｜关键词：哼唱,空白,点歌
-- RULE-RAD-03《别数浪》：[RULE-RAD-03] 别数浪｜夜里不许数浪声。若你已经数了，数到第7下后出现第8下且间隔比前面短，立刻上床用被子蒙头，直到听见鸡叫；继续数下去的人会听见她说“还差几个”，而那句话说的是你。｜关键词：潮汐,计数,蒙头
-- RULE-RAD-04《光脚开门，倒着回床》：[RULE-RAD-04] 光脚开门，倒着回床｜老板收走拖鞋之后，无论谁敲门都光脚开门，别穿任何鞋。若地上出现别人的湿脚印一直通向门口，不要顺着它走出去，倒着走回床边——它只认朝外
+- RULE-KIO-01《压缩机变快时站回台内》：[RULE-KIO-01] 压缩机变快时站回台内｜00:00 到 06:00 压缩机每90秒启一次是正常。若连续两次启动间隔短于90秒，立刻停下手上一切、站到收银台内侧不动，直到间隔恢复90秒。期间任何客人叫你，只许回答“稍等”两个字。｜关键词：90秒,间隔,稍等
+- RULE-KIO-02《奇数客人才读字条，只读第一行》：[RULE-KIO-02] 奇数客人才读字条，只读第一行｜收银机下的字条只允许在店内客人为奇数位时读；偶数位时读它，等于把那一句念给客人听。字条一共三行，任何时候只许读第一行，且读出声。第二行是给下一个人读的。｜关键词：字条,人数,朗读
+- RULE-KIO-03《零钱让他自己数》：[RULE-KIO-03] 零钱让他自己数｜在门口换零钱的人站超过5分钟还不换，就把收银台上标着“请自取”的硬币盘端过去让他自己拿。不许伸手替他从盘里数。你替他数一次，此后店里所有找零都由他数——包括你的。｜关键词：换零钱,硬币盘,手
+- RULE-KIO-04《04:00 后不报金额》：[RULE-KIO-04] 04:00 后不报金额｜04:00 之后不给穿拖鞋的客人结账（
 
 === archive_code[search] cite: 本轮命中 6 条：RULE-ELV-02、ITEM-ELV-01、NPC-ELV-01、OMEN-ELV-01、RULE-ELV-05、END-ELV-01
-codes_csv=RULE-ELV-02,ITEM-ELV-01,NPC-ELV-01,OMEN-ELV-01,RULE-ELV-05,END-ELV-01
-locked_csv=
+codes_csv=RULE-ELV-02,ITEM-ELV-01,NPC-ELV-01,OMEN-ELV-01,RULE-ELV-05,END-ELV-01,END-ELV-02,END-ELV-03
+locked_csv=RULE-ELV-04,RULE-ELV-06
 # 本轮档案检索结果（seekdb 三路混合命中 6 条）
 ## 可引用的规则
 - RULE-ELV-02《不许背对门》：[RULE-ELV-02] 不许背对门｜进轿厢先按楼层、后转身，全程面对门。四角不锈钢反光板里若看见自己身后多出一个人影，不许回头，按最近一层按钮，等门开了走出去。回头即算与它对视，判定为失败。｜关键词：轿厢,反光,姿态
@@ -53,18 +57,22 @@ locked_csv=
 ## 可引用的NPC
 - NPC-ELV-01《夜班保安老周》：[NPC-ELV-01] 夜班保安老周｜五十多岁，制服拉链拉到下巴，说话带浓重本地口音，句尾爱加“吧”。他会明确告诉你电梯检修、必须12层下梯（RULE-ELV-01），也会提醒你反光板别回头（RULE-ELV-02）。他绝口不提那段楼梯有几级——那得你自己数。他从不在夜里进轿厢，所以他在门内还是门外，是判断 RULE-ELV-04 的活证据。｜关键词：保安,口音,可信
 
-## 可引用的结局
-- END-EL
+## 可引用的结局（条件全文，不得提
 
-=== host_code[违规+幻觉编号] -> {"narration": "电梯在13层停住了。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01；解锁封存规则 RULE-RAD-05；达成结局 END-RAD-01；疑似触碰封存 RULE-RAD-05\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "violation", "mem_text": "工号 A-1101 在《礁石村
+=== host_code[违规+幻觉编号] -> {"narration": "电梯在13层停住了。", "narration_redacted": "", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《白杨便利的第十一夜》第 4 轮 当前场景=scn_convenience_store：玩家打算违反一条规则；违反 RULE-KIO-01；预兆 OMEN-KIO-01；解锁封存规则 RULE-KIO-05；达成结局 END-KIO-01；疑似触碰封存 RULE-KIO-05\", \"reason\": \"dify-chatflow-turn\"}",
 
-=== host_code[仅解锁封存] -> {"narration": "你把工牌举到反光板前。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"unlock\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；解锁封存规则 RULE-RAD-05\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "unlock", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；解锁封存规则 RULE-RAD-05", "violations_next": "RULE-E
+=== host_code[仅解锁封存] -> {"narration": "你把工牌举到反光板前。", "narration_redacted": "", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"unlock\", \"text\": \"工号 A-1101 在《白杨便利的第十一夜》第 4 轮 当前场景=scn_convenience_store：玩家打算违反一条规则；解锁封存规则 RULE-KIO-05\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "unlock", "mem_text": "工号 A-1101 在《白杨便利的第十一夜》第 4 轮 当前场
 
-=== host_code[空返回] -> {"narration": "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"progress\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "progress", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则", "violations_next": "RULE-ELV-01", "en
+=== host_code[空返回] -> {"narration": "档案馆的灯闪了一下。主持人没有回应你的描述，请你把动作说得更具体些。", "narration_redacted": "", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"progress\", \"text\": \"工号 A-1101 在《白杨便利的第十一夜》第 4 轮 当前场景=scn_convenience_store：玩家打算违反一条规则\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "progress", "mem_text": "工号 A-1101 在《白杨便利的第十一夜》第
 
-=== host_code[逗号串而非数组] -> {"narration": "你听见背后有呼吸。", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "violation", "mem_text": "工号 A-1101 在《礁石村的深夜电台》第 4 轮：玩家打算违反一条规则；违反 RULE-RAD-01；预兆 OMEN-RAD-01", 
+=== host_code[逗号串而非数组] -> {"narration": "你听见背后有呼吸。", "narration_redacted": "", "remember_body": "{\"scope_id\": \"scp_test_1\", \"kind\": \"violation\", \"text\": \"工号 A-1101 在《白杨便利的第十一夜》第 4 轮 当前场景=scn_convenience_store：玩家打算违反一条规则；违反 RULE-KIO-01；预兆 OMEN-KIO-01\", \"reason\": \"dify-chatflow-turn\"}", "mem_kind": "violation", "mem_text": "工号 A-1101 在《白杨便利
 
-round-trip vs cloud export: same 18 edges, same 27 variable references, same node titles
+=== host_code[正文兜底] 两条坏形状都保住叙述、截掉状态条、过了编号闸门
+
+=== host_code[行动轮解锁] locked=['RULE-ELV-04', 'RULE-ELV-06'] -> revealed_next=RULE-ELV-04 kind=unlock
+=== host_code[行动轮结局] ['END-ELV-01', 'END-ELV-02', 'END-ELV-03'] -> endings_next=END-ELV-03 stage=ended kind=ending
+
+round-trip vs cloud export: same 20 edges, same 28 variable references, same node titles
 
 ============================================================
 

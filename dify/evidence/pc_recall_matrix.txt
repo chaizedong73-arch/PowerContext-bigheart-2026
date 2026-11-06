@@ -1,0 +1,33 @@
+# PowerContext 召回矩阵：同一份记忆，两种读法
+# 服务 powercontext 1.2.0，存储后端 SQLite + FTS5
+#   （~/.local/share/powercontext/powercontext.db，表 pc_scopes / pc_memory_entry_heads /
+#    pc_memory_entry_versions / pc_memory_entry_fts），不是 SeekDB；
+#   该实例未配 embedding provider，所以 /v1/context/prepare 只有 fts 召回。
+# 结论：prepare 是否命中随措辞变；entries/list 恒返回全部条目。DSL 两路都读并去重合并。
+#
+## A. 档案袋里只有一条（scope_id=scp_5red82xcs191dvsg4x1x0sr4wc）
+#   写入内容：工号 A-RECALL-MATRIX-201233 在《礁石村的深夜电台》第 2 轮 当前场景=scn_seaside_radio：玩家打算把磁带倒回开头；违反 RULE-RAD-02；解锁封存规则 RULE-RAD-05
+查询类型           query                                      prepare               命中场景   list
+----------------------------------------------------------------------------------------------------
+玩家原话·续单        继续                                               0                  -      1
+玩家原话·回头看       我刚才是不是犯规了                                        0                  -      1
+玩家原话·换单        换个场景                                             1  scn_seaside_radio      1
+玩家原话·无关词       有人吗                                              0                  -      1
+DSL 实际查询       A-RECALL-MATRIX-201233 电台,磁带,倒带 违反 违规 解锁 封       1  scn_seaside_radio      1
+----------------------------------------------------------------------------------------------------
+## B. 同一工号连打 5 轮（scope_id=scp_6mseyz64761t6nafvvmxfp3s9q），关键那条是第 2 轮的 RULE-RAD-02 违规
+查询类型           query                                      prepare               命中场景   list             RAD-02 是否在
+----------------------------------------------------------------------------------------------------
+玩家原话·回头看       我刚才是不是犯规了                                        0                  -      5         prepare× list√
+玩家原话·续单        继续                                               0                  -      5         prepare× list√
+玩家原话·问旧账       我上一轮违反了什么                                        0                  -      5         prepare× list√
+DSL 实际查询       A-RECALL-MATRIX-201233-CROWD 电台,磁带,倒带 违反 违       2  scn_seaside_radio      5         prepare√ list√
+----------------------------------------------------------------------------------------------------
+读法：
+1) A 段：玩家原话「继续」「我刚才是不是犯规了」「有人吗」在 fts 上都是 0 命中，
+   查询里带上档案词汇（场景 / 电台 / 违反 / 解锁）才召得到——这就是跨会话翻旧账
+   在判题里没召回 RULE-RAD-02 的机制原因，不是写入丢了。
+2) B 段：条目变多以后 prepare 仍会漏，而 entries/list 两段都恒等于写入条数。
+   DSL 的「按顺序读档案袋」节点走的正是 list 这一路，合并后关键条目必在上下文里。
+3) 「命中场景」取自记忆文本中的 当前场景=<scene_id> 标签：新开会话窗口时会话变量是空的，
+   Chatflow 靠这个标签续上原来那一局，而不是重派。

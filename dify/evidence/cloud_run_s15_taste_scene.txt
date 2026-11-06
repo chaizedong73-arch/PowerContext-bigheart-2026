@@ -1,0 +1,65 @@
+# 云端运行取证 · 场景 s15_taste_scene · 取样时间 2026-11-06T21:53:54+0800
+# 可回溯性：本次跑的 DSL 文件与其哈希
+#   DSL  = dify/dsl/midnight_archive_chatflow.yml
+#   sha256(dsl) = dff3595e7c2995906124fbe8c8aa329552d273e6b5c69904db450e9a45d4189f
+#   sha256(dsl，换行归一成 LF) = abf92720b23e78fc566c96efb574e677598ce7a6a51e7b9e7b4609a984e2a971  ← 仓库 blob 存的是 LF，用 `git show HEAD:dify/dsl/midnight_archive_chatflow.yml | sha256sum` 得到的是这个
+#   git HEAD = 18b00b8c63cc78d2fe9bbcce0aabe17822999ed3
+#   git status --short（取样时未提交的改动）= M dify/README.md |  M dify/RUNBOOK.md |  M dify/VALIDATION.md |  M dify/archive/main.py |  M dify/archive/seekdb_store.py |  M dify/capture/scene_pack.json |  M dify/capture/search.json |  M dify/dsl/midnight_archive_chatflow.yml |  M dify/evidence/cloud_export/app.yaml |  M dify/evidence/cloud_export/manifest.yaml |  M dify/evidence/validator_stdout.txt |  M dify/tools/cloud_publish_parity.py |  M dify/tools/cloud_run_trace.py |  M dify/tools/reveal_sample.py |  M dify/tools/validate_dsl.py | ?? dify/evidence/backend_reroll_exclude.txt | ?? dify/evidence/cloud_publish_parity.txt | ?? dify/evidence/cloud_run_s10_reroll_words.txt | ?? dify/evidence/cloud_run_s11_cross_conversation.txt | ?? dify/evidence/cloud_run_s12_unlock_positive.txt | ?? dify/evidence/cloud_run_s13_unlock_cloud.txt | ?? dify/evidence/cloud_run_s14_ending_bad.txt | ?? dify/evidence/cloud_run_s15_taste_scene.txt | ?? dify/evidence/cloud_run_s16_difficulty_cap.txt | ?? dify/evidence/cloud_run_s3_same_conversation.txt | ?? dify/evidence/pc_recall_matrix.txt | ?? dify/evidence/reveal_positive_path.txt | ?? dify/tools/build_draft_payload.py
+#   分支 = 2026-competition-ecosystem
+# 调用方式：POST https://api.dify.ai/v1/chat-messages，response_mode=streaming（blocking 响应里没有运行 ID）
+# 密钥不落文件：只用环境变量 DIFY_API_KEY，这里只记后 4 位 = …ZdwE
+
+== 第 1 轮  工号=A-CLOUD-S86  会话=新开会话
+   玩家原话：今晚给我派个活，我怕黑，喜欢跟声音有关的线索，难度中等。
+   workflow_run_id = d4f00eb2-602c-45b9-aca4-7ed8b8457b47   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = 32049952-5eea-401f-8e70-665d73d64e6a   conversation_id = ce582a4a-30a6-4002-aaae-bc864459b56b   task_id = 3531bb5d-51fe-4005-b7df-8b2af60b5e43
+   运行状态 = succeeded   本地整轮计时 = 12.9 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.0001s
+     ok llm            意图与关键词抽取               status=succeeded  0.907668s
+     ok code           解析分类结果                 status=succeeded  0.071461s
+     ok code           组装请求体                  status=succeeded  0.120739s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.403365s
+     ok code           取回 scope_id            status=succeeded  0.158373s
+     ok http-request   读取玩家记忆                 status=succeeded  0.453039s
+     ok http-request   按顺序读档案袋                status=succeeded  0.321729s
+     ok code           解析记忆条目                 status=succeeded  0.106975s
+     ok code           组装检索请求体                status=succeeded  0.385818s
+        outputs={"active_scene_id": "", "scene_body": "{\"taste\": \"今晚给我派个活，我怕黑，喜欢跟声音有关的线索，难度中等。 声音 线索 黑\", \"scene_id\": \"\", \"revealed_csv\": \"\", \"difficulty\": 3}", "scene_source": "fresh", "search_body": "{\"query\": \"玩家要求派一局新任务，偏好声音线索。 今晚给我派个活，我怕黑，喜欢跟声音有关的线索，难度中等。\", \"scene_id\": \"\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"声音,线索,黑\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": ""
+        场景来源："scene_source": "fresh"
+     ok if-else        派单还是行动                 status=succeeded  0.00011s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  1.097224s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_seaside_radio\",\"title\":\"礁石村的深夜电台\",\"one_line\":\"这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。\",\"brief\":\"礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。\",\"tone\":\"主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。\",\"difficulty\":2,\"danger\":3,\"tags\":\"海边,声音,民俗,渔村\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_seaside_radio:rule:RULE-RAD-01\",\"code\":\"RULE-RAD-01\",\"kind\":\"rule\",\"scene_id\":\"scn_seaside_radio\",\"title\":\"先旋到零，再决定听不听\",\"…
+        后端回显的排除幕："reroll_excluded_scene_id":""
+        本轮认定的场景："scene_id":"scn_seaside_radio"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  6e-05 s
+     ok code           拼装档案块                  status=succeeded  0.481567s
+        本轮可引用的编号："codes_csv": "RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-RAD-05,RULE-RAD-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  3.970148s
+     ok code           裁决校验与记忆文案              status=succeeded  0.067185s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：无"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.002217s
+     ok http-request   写回玩家记忆                 status=succeeded  0.417331s
+     ok answer         回复玩家                   status=succeeded  0.000144s
+   泄露自检：本轮封存中=RULE-RAD-05,RULE-RAD-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 3324, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 470, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 3794, "total_price": "0", "currency": "USD", "latency": 4.863, "time_to_firs…
+   主持人回复：
+     | 潮声房给你留着，钥匙在门框上，铁皮收音机摆在床头柜。老板陈老倌每晚十一点收走全院拖鞋，他开口前先“啧”一声，只给规矩不给解释——他会跟你讲音量与换台的道理（RULE-RAD-01），也会说清为什么收拖鞋（RULE-RAD-04），但他坚称东屋一直有人住，这话你取一半吧。现在离十一点半涨潮还有一会。你怕黑，那就先别急着关灯：可以先翻翻灶房窗台那半罐煤油上的旧标签，看它被撕掉的一半写了什么；也可以敲开老板的门，问他三年前夜班船的事，顺便看看他右手缺的那节指头；或者干脆坐在床边，听听窗框这会儿是散乱地颤，还是已经带上节律。收音机还没响，旋钮朝哪边，你自己定吧。
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S86` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1fqb9rjp16avweqnbpr3pbv1x0`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "潮声房给你留着，钥匙在门框上，铁皮收音机摆在床头柜。老板陈老倌每晚十一点收走全院拖鞋，他开口前先“啧”一声，只给规矩不给解释——他会跟你讲音量与换台的道理（RULE-RAD-01），也会说清为什么收拖鞋（RULE-RAD-04），但他坚称东屋一直有人住，这话你取一半吧。现在离十一点半涨潮还有一会。你怕黑，那就先别急着关灯：可以先翻翻灶房窗台那半罐煤油上的旧标签，看它被撕掉的一半写了什么；也可以敲开老板的门，问他三年前夜班船的事，顺便看看他右手缺的那节指头；或者干脆坐在床边，听听窗框这会儿是散乱地颤，还是已经带上节律。收音机还没响，旋钮朝哪边，你自己定吧。\n\n---\n🪪 工号 `A-CLOUD-S86` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1fqb9rjp16avweqnbpr3pbv1x0`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}

@@ -1,0 +1,120 @@
+# 云端运行取证 · 场景 s16_difficulty_cap · 取样时间 2026-11-06T21:54:08+0800
+# 可回溯性：本次跑的 DSL 文件与其哈希
+#   DSL  = dify/dsl/midnight_archive_chatflow.yml
+#   sha256(dsl) = dff3595e7c2995906124fbe8c8aa329552d273e6b5c69904db450e9a45d4189f
+#   sha256(dsl，换行归一成 LF) = abf92720b23e78fc566c96efb574e677598ce7a6a51e7b9e7b4609a984e2a971  ← 仓库 blob 存的是 LF，用 `git show HEAD:dify/dsl/midnight_archive_chatflow.yml | sha256sum` 得到的是这个
+#   git HEAD = 18b00b8c63cc78d2fe9bbcce0aabe17822999ed3
+#   git status --short（取样时未提交的改动）= M dify/README.md |  M dify/RUNBOOK.md |  M dify/VALIDATION.md |  M dify/archive/main.py |  M dify/archive/seekdb_store.py |  M dify/capture/scene_pack.json |  M dify/capture/search.json |  M dify/dsl/midnight_archive_chatflow.yml |  M dify/evidence/cloud_export/app.yaml |  M dify/evidence/cloud_export/manifest.yaml |  M dify/evidence/validator_stdout.txt |  M dify/tools/cloud_publish_parity.py |  M dify/tools/cloud_run_trace.py |  M dify/tools/reveal_sample.py |  M dify/tools/validate_dsl.py | ?? dify/evidence/backend_reroll_exclude.txt | ?? dify/evidence/cloud_publish_parity.txt | ?? dify/evidence/cloud_run_s10_reroll_words.txt | ?? dify/evidence/cloud_run_s11_cross_conversation.txt | ?? dify/evidence/cloud_run_s12_unlock_positive.txt | ?? dify/evidence/cloud_run_s13_unlock_cloud.txt | ?? dify/evidence/cloud_run_s14_ending_bad.txt | ?? dify/evidence/cloud_run_s15_taste_scene.txt | ?? dify/evidence/cloud_run_s16_difficulty_cap.txt | ?? dify/evidence/cloud_run_s3_same_conversation.txt | ?? dify/evidence/pc_recall_matrix.txt | ?? dify/evidence/reveal_positive_path.txt | ?? dify/tools/build_draft_payload.py
+#   分支 = 2026-competition-ecosystem
+# 调用方式：POST https://api.dify.ai/v1/chat-messages，response_mode=streaming（blocking 响应里没有运行 ID）
+# 密钥不落文件：只用环境变量 DIFY_API_KEY，这里只记后 4 位 = …ZdwE
+
+== 第 1 轮  工号=A-CLOUD-S87  会话=新开会话
+   玩家原话：我喜欢跟声音有关的线索，难度只要最简单的。
+   workflow_run_id = 51b9a880-dc6a-40d9-b569-8a061b44de4e   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = 870329c2-cbe9-4e55-8545-b7a7979ac382   conversation_id = 8edced3d-31d5-42e6-9498-f0268bb9c7c2   task_id = 1bf6f48e-b238-4d8e-a202-5a3ded67752b
+   运行状态 = succeeded   本地整轮计时 = 11.3 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000105s
+     ok llm            意图与关键词抽取               status=succeeded  2.916696s
+     ok code           解析分类结果                 status=succeeded  0.093244s
+     ok code           组装请求体                  status=succeeded  0.085502s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.385323s
+     ok code           取回 scope_id            status=succeeded  0.096702s
+     ok http-request   读取玩家记忆                 status=succeeded  0.40213s
+     ok http-request   按顺序读档案袋                status=succeeded  0.374943s
+     ok code           解析记忆条目                 status=succeeded  0.064384s
+     ok code           组装检索请求体                status=succeeded  0.065679s
+        outputs={"active_scene_id": "", "scene_body": "{\"taste\": \"我喜欢跟声音有关的线索，难度只要最简单的。 声音 线索 难度\", \"scene_id\": \"\", \"revealed_csv\": \"\", \"difficulty\": 1}", "scene_source": "fresh", "search_body": "{\"query\": \"玩家表示偏好声音类线索，并要求最低难度。 我喜欢跟声音有关的线索，难度只要最简单的。\", \"scene_id\": \"\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"声音,线索,难度\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": ""
+        场景来源："scene_source": "fresh"
+     ok if-else        派单还是行动                 status=succeeded  0.000147s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  1.194603s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_office_elevator\",\"title\":\"末班电梯只停偶数层\",\"one_line\":\"加班到零点，电梯今天想在13层多停一次——可你的工位在13层。\",\"brief\":\"城南致真大厦，二十层玻璃幕墙写字楼。你连续加班第七天，23:58 独自进电梯。轿厢四角贴着防刮不锈钢反光板，空调出风口有一股陈年灰尘的甜味；楼层面板上“13”的漆被抠掉过又补上，颜色比别的键深。物业通知：本周夜间电梯检修，零点后只停偶数层。而你落了一份没锁屏的电脑在13层。电梯下行到一半会停，门开，外面是黑走廊，能听见空调外机嗡嗡响和有人接水的声音。地下车库的车 04:00 前会被清走。保安老周只在整点巡逻经过电梯厅，他会用对讲机叫你一声——那一声里，你得判断他是不是人。\",\"tone\":\"主持人像物业广播一样平淡地报数字，不说“小心”。只在玩家做出会致命的动作前多补一句“你确定？”，语气像在核对表格。\",\"difficulty\":1,\"danger\":2,\"tags\":\"都市,封闭空间,职场,高楼\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_office_elevator:rule:RULE-ELV-01\",\"code\":\"RULE-ELV-01\",\"kind\":\"rule\",\"scene_id\":\"scn_office_elevator\"…
+        后端回显的排除幕："reroll_excluded_scene_id":""
+        本轮认定的场景："scene_id":"scn_office_elevator"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  7.8e-05s
+     ok code           拼装档案块                  status=succeeded  0.07742s
+        本轮可引用的编号："codes_csv": "RULE-ELV-01,RULE-ELV-02,RULE-ELV-03,RULE-ELV-05,ITEM-ELV-01,ITEM-ELV-02,ITEM-ELV-03,NPC-ELV-01,NPC-ELV-02,OMEN-ELV-01,OMEN-ELV-02,OMEN-ELV-03,END-ELV-01,END-ELV-02,END-ELV-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-ELV-04,RULE-ELV-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  3.831754s
+     ok code           裁决校验与记忆文案              status=succeeded  0.078556s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：无"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.001681s
+     ok http-request   写回玩家记忆                 status=succeeded  0.466574s
+     ok answer         回复玩家                   status=succeeded  0.000146s
+   泄露自检：本轮封存中=RULE-ELV-04,RULE-ELV-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 3400, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 726, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 4126, "total_price": "0", "currency": "USD", "latency": 6.734, "time_to_firs…
+   主持人回复：
+     | 值班台记下你的偏好：与声音有关的条目本轮优先报给你——RULE-ELV-05 里“每一声敲击都会被当成有人在里面”、OMEN-ELV-03 的对讲机静噪“沙—沙”是一声还是两声、NPC-ELV-02 那位只以塑料桶咕咚声和拖鞋声存在的接水人，都是靠耳朵判的。23:58，你独自走进轿厢，四角反光板把你自己照成四份。面板上“13”的补漆比别的键深，此刻看着有点湿。空调出风口的甜味正常，温度正常。按楼层前，先决定你要做什么：一，直接按“12”，进轿厢后转身面对门；二，先到12层电梯厅窗台翻那本黑皮巡更本，第七页夹着干树叶；三，站在门口听一会儿——楼里此刻的接水声，是从哪一层传来的？
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S87` ｜ 🎬 末班电梯只停偶数层 ｜ 第 1 轮 ｜ 心情 safe
+     | 📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_3d4v1jzwpsp8sjg0gr8fvxd0ks`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "值班台记下你的偏好：与声音有关的条目本轮优先报给你——RULE-ELV-05 里“每一声敲击都会被当成有人在里面”、OMEN-ELV-03 的对讲机静噪“沙—沙”是一声还是两声、NPC-ELV-02 那位只以塑料桶咕咚声和拖鞋声存在的接水人，都是靠耳朵判的。23:58，你独自走进轿厢，四角反光板把你自己照成四份。面板上“13”的补漆比别的键深，此刻看着有点湿。空调出风口的甜味正常，温度正常。按楼层前，先决定你要做什么：一，直接按“12”，进轿厢后转身面对门；二，先到12层电梯厅窗台翻那本黑皮巡更本，第七页夹着干树叶；三，站在门口听一会儿——楼里此刻的接水声，是从哪一层传来的？\n\n---\n🪪 工号 `A-CLOUD-S87` ｜ 🎬 末班电梯只停偶数层 ｜ 第 1 轮 ｜ 心情 safe\n📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_3d4v1jzwpsp8sjg0gr8fvxd0ks`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}
+
+== 第 2 轮  工号=A-CLOUD-S88  会话=新开会话
+   玩家原话：我喜欢跟声音有关的线索，难度中等。
+   workflow_run_id = 23624d93-532d-448c-925b-565637c41649   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = 35a4561f-b9d3-4483-a93e-40372fd44190   conversation_id = fd4f46ed-7b1c-42db-be91-262ccdd4e111   task_id = dded8322-678f-4010-affa-265abd94260d
+   运行状态 = succeeded   本地整轮计时 = 10.8 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000133s
+     ok llm            意图与关键词抽取               status=succeeded  1.962749s
+     ok code           解析分类结果                 status=succeeded  0.101937s
+     ok code           组装请求体                  status=succeeded  0.282446s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.852208s
+     ok code           取回 scope_id            status=succeeded  0.064815s
+     ok http-request   读取玩家记忆                 status=succeeded  0.387136s
+     ok http-request   按顺序读档案袋                status=succeeded  0.333447s
+     ok code           解析记忆条目                 status=succeeded  0.244741s
+     ok code           组装检索请求体                status=succeeded  0.207933s
+        outputs={"active_scene_id": "", "scene_body": "{\"taste\": \"我喜欢跟声音有关的线索，难度中等。 声音 线索 难度\", \"scene_id\": \"\", \"revealed_csv\": \"\", \"difficulty\": 3}", "scene_source": "fresh", "search_body": "{\"query\": \"玩家说明偏好声音类线索，并要求中等难度开局。 我喜欢跟声音有关的线索，难度中等。\", \"scene_id\": \"\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"声音,线索,难度\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": ""
+        场景来源："scene_source": "fresh"
+     ok if-else        派单还是行动                 status=succeeded  0.000131s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  0.713609s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_seaside_radio\",\"title\":\"礁石村的深夜电台\",\"one_line\":\"这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。\",\"brief\":\"礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。\",\"tone\":\"主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。\",\"difficulty\":2,\"danger\":3,\"tags\":\"海边,声音,民俗,渔村\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_seaside_radio:rule:RULE-RAD-01\",\"code\":\"RULE-RAD-01\",\"kind\":\"rule\",\"scene_id\":\"scn_seaside_radio\",\"title\":\"先旋到零，再决定听不听\",\"…
+        后端回显的排除幕："reroll_excluded_scene_id":""
+        本轮认定的场景："scene_id":"scn_seaside_radio"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  7.9e-05s
+     ok code           拼装档案块                  status=succeeded  0.237323s
+        本轮可引用的编号："codes_csv": "RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-RAD-05,RULE-RAD-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  3.711684s
+     ok code           裁决校验与记忆文案              status=succeeded  0.08296s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：无"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.002362s
+     ok http-request   写回玩家记忆                 status=succeeded  0.422932s
+     ok answer         回复玩家                   status=succeeded  0.000181s
+   泄露自检：本轮封存中=RULE-RAD-05,RULE-RAD-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 3288, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 553, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 3841, "total_price": "0", "currency": "USD", "latency": 5.6579999999999995, …
+   主持人回复：
+     | 十一点半，潮水刚好顶到窗台下面，老板挨间收走拖鞋，走到东边这扇门前就停了，啧了一声，什么也没说。你屋里那只铁皮收音机还在响——不，是还没响，旋钮停在“1”上面，黏着一层盐。老板娘的话在走廊尽头传过来：音量在“1”以下不算听。你记着，先旋到零，再决定听不听吧（RULE-RAD-01）。铁皮烟盒在抽屉里，里面一只两脚老插头；防潮袋里的排班表还没拆，纸在涨潮时展开会化呢。窗外海声还散着，暂时不规整。你可以先把旋钮逆时针转到底，再决定听不听；也可以翻出烟盒数一数那唯一的断电机会；或者拆开排班表，趁现在还没涨满——你确定要现在拆吗？
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S88` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_6ejsyt3mghck7hbaqm1a0h5g7g`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "十一点半，潮水刚好顶到窗台下面，老板挨间收走拖鞋，走到东边这扇门前就停了，啧了一声，什么也没说。你屋里那只铁皮收音机还在响——不，是还没响，旋钮停在“1”上面，黏着一层盐。老板娘的话在走廊尽头传过来：音量在“1”以下不算听。你记着，先旋到零，再决定听不听吧（RULE-RAD-01）。铁皮烟盒在抽屉里，里面一只两脚老插头；防潮袋里的排班表还没拆，纸在涨潮时展开会化呢。窗外海声还散着，暂时不规整。你可以先把旋钮逆时针转到底，再决定听不听；也可以翻出烟盒数一数那唯一的断电机会；或者拆开排班表，趁现在还没涨满——你确定要现在拆吗？\n\n---\n🪪 工号 `A-CLOUD-S88` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_6ejsyt3mghck7hbaqm1a0h5g7g`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}

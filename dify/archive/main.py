@@ -6,8 +6,11 @@
   留在 Dify Chatflow 里，因此 seekdb 在应用中的职责边界清晰可核对。
 * 每个响应都带 `retrieval` 字段，说明本次命中走了哪条 seekdb 通道（向量 / 全文 / 结构化 /
   RRF 融合）以及各自的命中编号，直接用于赛事要求的「技术实际发挥作用」证据。
-* 封存规则（metadata.sealed=true）在未解锁时不会进入任何返回值——检索结果会改变互动，
-  而不是仅仅打印日志。
+* 封存规则（metadata.sealed=true）在未解锁时**条文与标题都不出网关**：`search` 只以 `sealed_gated`
+  交回「哪些编号还封着 + 危险度」，`scene_pack` 同理放在 `sealed_locked`；原文只有 `reveal` 被调用、
+  且编号进入下一轮的已解锁列表之后，才会正常出现在检索结果里。
+* `search` 另附 `scene_endings`（本场景全部结局条文，结局本来就不封存）：行动轮的 top_k 撞不撞得中
+  结局条文全看措辞，主持人缺了触发条件全文就永远无法判定「达成结局」，只能一直推进。
 """
 
 from __future__ import annotations
@@ -104,7 +107,38 @@ def build_app():
             danger_min=body.danger_min,
             n_results=max(1, min(int(body.top_k or 8), 30)),
         )
+        revealed = set(body.resolved_revealed() or [])
+        gated = [
+            {"code": r["code"], "danger": r.get("danger"), "state": "sealed", "from": "hit"}
+            for r in res["hits"]
+            if r.get("sealed") and r["code"] not in revealed
+        ]
+        if body.scene_id:
+            # top_k 只有几条，行动文本未必能撞上封存规则本身；把本场景仍封存的编号也交出去，
+            # 玩家做对了动作才有的解。这两个来源都只有 code+danger，条文与标题照旧不下发。
+            seen = {g["code"] for g in gated}
+            for r in store.list_by_filter(kinds=["rule"], scene_id=body.scene_id, limit=40):
+                if r["sealed"] and r["code"] not in revealed and r["code"] not in seen:
+                    gated.append({"code": r["code"], "danger": r.get("danger"), "state": "sealed", "from": "scene_rules"})
+                    seen.add(r["code"])
+            # 结局条文是反过来的问题：它不封存，却全看措辞才挤得进 top_k。玩家这一轮正好凑齐
+            # 触发条件、主持人手里却没有条件全文时，「条件没凑齐就不给结局」这条铁律会让本局
+            # 永远封不了盘。所以按 scene_id 把本场景结局整条交回——派单轮本来就是整套下发，
+            # 这不是新的暴露面，透露与否仍由提示词管着。
+            res["scene_endings"] = [
+                {"code": r["code"], "title": r.get("title"), "danger": r.get("danger"), "document": r.get("document")}
+                for r in store.list_by_filter(kinds=["ending"], scene_id=body.scene_id, limit=10)
+            ]
+            res["scene_endings_note"] = (
+                "本场景全部结局条文（本来就不封存）。行动轮检索未必命中，故整条交回，主持人据此判定触发条件是否凑齐；"
+                "没凑齐不许提前向玩家透露条件"
+            )
         res["hits"] = _unlock_filter(res["hits"], body.resolved_revealed())
+        res["sealed_gated"] = gated
+        res["sealed_gated_note"] = (
+            "来源 hit=seekdb 三路命中后被 API 层 _unlock_filter 挡下；来源 scene_rules=本场景 where 查询里仍封存的规则。"
+            "两者只给 code/danger，条文与标题都不下发——主持人据此判断玩家动作是否满足道具写明的用途，满足才允许解锁"
+        )
         return res
 
     @app.post("/archive/scene_pack")

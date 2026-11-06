@@ -25,7 +25,7 @@ DB_PATH = Path(os.environ.get("ARCHIVE_SEEKDB_PATH", str(Path.home() / "dify-arc
 COLLECTION_NAME = os.environ.get("ARCHIVE_COLLECTION", "ghost_archive")
 DATA_FILE = Path(os.environ.get("ARCHIVE_DATA_FILE", str(Path(__file__).resolve().parent / "data" / "scenes.json")))
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 _client = None
 _collection = None
 
@@ -59,6 +59,33 @@ def collection(recreate: bool = False):
             _client.delete_collection(COLLECTION_NAME)
         _collection = _client.get_or_create_collection(COLLECTION_NAME, schema=_schema())
         return _collection
+
+
+def _is_dead_connection(exc: BaseException) -> bool:
+    text = str(exc).lower()
+    return "gone away" in text or "2006" in text
+
+
+def _retry_dead(fn):
+    """在锁内跑一次；撞上「连接已死」就丢掉缓存重开再跑一次。
+
+    嵌入式 seekdb 只有一条连接，而 FastAPI 把 sync 端点丢进线程池：跨线程共用同一条
+    连接实测会打出 ``SeekdbError: Server has gone away failed: code=2006``（跑了一两个
+    小时后出现，一次连挂四个云端回合）。缓存里的 collection 指向的仍是那条死连接，
+    后果分两种，都很难看：写路径直接 500 中断整轮互动；读路径更糟——``hybrid_search``
+    三条通道各自 ``except`` 把死连接吞成「本轮没有命中」，HTTP 200、hits 全空，玩家看到的
+    是「档案室今晚查不到东西」。所以两头一起修：**取数全程持锁串行**（根因），
+    **命中死连接就重建集合重试一次**（兜底）。
+    """
+    global _collection
+    with _lock:
+        try:
+            return fn(collection())
+        except Exception as exc:
+            if not _is_dead_connection(exc):
+                raise
+            _collection = None
+            return fn(collection())
 
 
 # ----------------------------------------------------------------------- import
@@ -222,7 +249,6 @@ def hybrid_search(
 ) -> Dict[str, Any]:
     """一次调用里同时留下三条通道的证据：fused(RRF) / vector-only / fulltext-only。"""
     t0 = time.time()
-    col = collection()
     where = _where(kinds, scene_id, danger_min, difficulty_max, include_sealed)
     kw = [k for k in (keywords or []) if k]
     if not kw:
@@ -237,7 +263,7 @@ def hybrid_search(
 
     channels: Dict[str, Any] = {}
     try:
-        fused_res = col.hybrid_search(query=ft_clause, knn=knn_clause, rank={"rrf": {"rank_window_size": 30, "rank_constant": 20}}, n_results=n_results, include=["documents", "metadatas"])
+        fused_res = _retry_dead(lambda c: c.hybrid_search(query=ft_clause, knn=knn_clause, rank={"rrf": {"rank_window_size": 30, "rank_constant": 20}}, n_results=n_results, include=["documents", "metadatas"]))
         fused = _norm_rows(fused_res)
         channels["fused"] = {"engine": "seekdb.hybrid_search(rank=rrf)", "hits": [r["code"] for r in fused]}
     except Exception as exc:  # 融合不可用时退化为向量通道，并把原因留痕
@@ -245,7 +271,7 @@ def hybrid_search(
         channels["fused"] = {"engine": "seekdb.hybrid_search(rank=rrf)", "error": f"{type(exc).__name__}: {exc}"[:200]}
 
     try:
-        vec_res = col.query(query_embeddings=embedder.embed([query]), n_results=n_results, where=where or None, include=["documents", "metadatas"])
+        vec_res = _retry_dead(lambda c: c.query(query_embeddings=embedder.embed([query]), n_results=n_results, where=where or None, include=["documents", "metadatas"]))
         vec = _norm_rows(vec_res)
         channels["vector"] = {"engine": "seekdb.query(HNSW cosine)", "hits": [r["code"] for r in vec]}
     except Exception as exc:
@@ -253,7 +279,7 @@ def hybrid_search(
         channels["vector"] = {"engine": "seekdb.query(HNSW cosine)", "error": f"{type(exc).__name__}: {exc}"[:200]}
 
     try:
-        ft_res = col.get(where_document=contains, where=where or None, limit=n_results, include=["documents", "metadatas"])
+        ft_res = _retry_dead(lambda c: c.get(where_document=contains, where=where or None, limit=n_results, include=["documents", "metadatas"]))
         ft = _norm_rows(ft_res)
         channels["fulltext"] = {"engine": "seekdb.get(where_document=$contains)", "keyword": (kw[0] if kw else query), "hits": [r["code"] for r in ft]}
     except Exception as exc:
@@ -309,21 +335,20 @@ def _auto_keywords(text: str) -> List[str]:
 
 def list_by_filter(kinds: Optional[List[str]] = None, scene_id: Optional[str] = None, include_sealed: bool = True, limit: int = 60) -> List[Dict[str, Any]]:
     """纯结构化查询（不走相似度）：取回某场景全部生效规则/道具等。"""
-    col = collection()
     where = _where(kinds, scene_id, None, None, include_sealed)
-    res = col.get(where=where or None, limit=limit, include=["documents", "metadatas"])
+    res = _retry_dead(lambda c: c.get(where=where or None, limit=limit, include=["documents", "metadatas"]))
     return _norm_rows(res)
 
 
 def stats() -> Dict[str, Any]:
-    col = collection()
+    count = _retry_dead(lambda c: int(c.count()))
     return {
         "engine": "seekdb(embedded)",
         "dbPath": str(DB_PATH),
         "collection": COLLECTION_NAME,
         "dimension": embedder.DIM,
         "indexes": {"vector": "HNSW/cosine", "fulltext": "ik"},
-        "count": int(col.count()),
+        "count": count,
         "embeddingProvider": embedder.provider(),
     }
 
@@ -339,8 +364,7 @@ def recent_calls(limit: int = 20) -> List[Dict[str, Any]]:
 
 def corpus_scenes() -> List[Dict[str, Any]]:
     """场景清单同样从库里聚合，不回落 data/scenes.json。"""
-    col = collection()
-    res = col.get(where=_where(kinds=["scene"]), limit=60, include=["documents", "metadatas"])
+    res = _retry_dead(lambda c: c.get(where=_where(kinds=["scene"]), limit=60, include=["documents", "metadatas"]))
     counts = _rule_counts()
     out: List[Dict[str, Any]] = []
     seen: set = set()

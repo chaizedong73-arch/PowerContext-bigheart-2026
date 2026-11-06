@@ -1,0 +1,228 @@
+# 云端运行取证 · 场景 s10_reroll_words · 取样时间 2026-11-06T21:49:14+0800
+# 可回溯性：本次跑的 DSL 文件与其哈希
+#   DSL  = dify/dsl/midnight_archive_chatflow.yml
+#   sha256(dsl) = dff3595e7c2995906124fbe8c8aa329552d273e6b5c69904db450e9a45d4189f
+#   sha256(dsl，换行归一成 LF) = abf92720b23e78fc566c96efb574e677598ce7a6a51e7b9e7b4609a984e2a971  ← 仓库 blob 存的是 LF，用 `git show HEAD:dify/dsl/midnight_archive_chatflow.yml | sha256sum` 得到的是这个
+#   git HEAD = 18b00b8c63cc78d2fe9bbcce0aabe17822999ed3
+#   git status --short（取样时未提交的改动）= M dify/README.md |  M dify/RUNBOOK.md |  M dify/VALIDATION.md |  M dify/archive/main.py |  M dify/archive/seekdb_store.py |  M dify/capture/scene_pack.json |  M dify/capture/search.json |  M dify/dsl/midnight_archive_chatflow.yml |  M dify/evidence/cloud_export/app.yaml |  M dify/evidence/cloud_export/manifest.yaml |  M dify/evidence/validator_stdout.txt |  M dify/tools/cloud_publish_parity.py |  M dify/tools/cloud_run_trace.py |  M dify/tools/reveal_sample.py |  M dify/tools/validate_dsl.py | ?? dify/evidence/backend_reroll_exclude.txt | ?? dify/evidence/cloud_publish_parity.txt | ?? dify/evidence/cloud_run_s10_reroll_words.txt | ?? dify/evidence/cloud_run_s11_cross_conversation.txt | ?? dify/evidence/cloud_run_s12_unlock_positive.txt | ?? dify/evidence/cloud_run_s13_unlock_cloud.txt | ?? dify/evidence/cloud_run_s14_ending_bad.txt | ?? dify/evidence/cloud_run_s15_taste_scene.txt | ?? dify/evidence/cloud_run_s16_difficulty_cap.txt | ?? dify/evidence/cloud_run_s3_same_conversation.txt | ?? dify/evidence/pc_recall_matrix.txt | ?? dify/evidence/reveal_positive_path.txt | ?? dify/tools/build_draft_payload.py
+#   分支 = 2026-competition-ecosystem
+# 调用方式：POST https://api.dify.ai/v1/chat-messages，response_mode=streaming（blocking 响应里没有运行 ID）
+# 密钥不落文件：只用环境变量 DIFY_API_KEY，这里只记后 4 位 = …ZdwE
+
+== 第 1 轮  工号=A-CLOUD-S81  会话=新开会话
+   玩家原话：给我派个跟声音有关的活，中等难度。
+   workflow_run_id = 06a6b2ec-0143-4d64-a683-2c5ad7051d20   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = ba417fdb-426d-455a-ab94-837124a875d3   conversation_id = 9cc454c0-3c7a-4608-8b89-dbc69947a3ae   task_id = 6a1283fd-2813-41c4-b1ef-3c65a711f031
+   运行状态 = succeeded   本地整轮计时 = 15.0 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000111s
+     ok llm            意图与关键词抽取               status=succeeded  1.974598s
+     ok code           解析分类结果                 status=succeeded  0.13902s
+     ok code           组装请求体                  status=succeeded  0.239457s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.450925s
+     ok code           取回 scope_id            status=succeeded  0.201115s
+     ok http-request   读取玩家记忆                 status=succeeded  0.413164s
+     ok http-request   按顺序读档案袋                status=succeeded  0.451233s
+     ok code           解析记忆条目                 status=succeeded  0.352292s
+     ok code           组装检索请求体                status=succeeded  0.401832s
+        outputs={"active_scene_id": "", "scene_body": "{\"taste\": \"给我派个跟声音有关的活，中等难度。 声音 活 难度\", \"scene_id\": \"\", \"revealed_csv\": \"\", \"difficulty\": 3}", "scene_source": "fresh", "search_body": "{\"query\": \"玩家要求派一个与声音有关、中等难度的活。 给我派个跟声音有关的活，中等难度。\", \"scene_id\": \"\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"声音,活,难度\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": ""
+        场景来源："scene_source": "fresh"
+     ok if-else        派单还是行动                 status=succeeded  0.000116s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  1.398587s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_seaside_radio\",\"title\":\"礁石村的深夜电台\",\"one_line\":\"这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。\",\"brief\":\"礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。\",\"tone\":\"主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。\",\"difficulty\":2,\"danger\":3,\"tags\":\"海边,声音,民俗,渔村\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_seaside_radio:rule:RULE-RAD-01\",\"code\":\"RULE-RAD-01\",\"kind\":\"rule\",\"scene_id\":\"scn_seaside_radio\",\"title\":\"先旋到零，再决定听不听\",\"…
+        后端回显的排除幕："reroll_excluded_scene_id":""
+        本轮认定的场景："scene_id":"scn_seaside_radio"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  7.2e-05s
+     ok code           拼装档案块                  status=succeeded  0.138113s
+        本轮可引用的编号："codes_csv": "RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-RAD-05,RULE-RAD-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  6.859029s
+     ok code           裁决校验与记忆文案              status=succeeded  0.091769s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：无"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.001763s
+     ok http-request   写回玩家记忆                 status=succeeded  0.441007s
+     ok answer         回复玩家                   status=succeeded  0.000176s
+   泄露自检：本轮封存中=RULE-RAD-05,RULE-RAD-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 3297, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 1049, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 4346, "total_price": "0", "currency": "USD", "latency": 8.817, "time_to_fir…
+   主持人回复：
+     | 活不挑人，声音挑。这单是中等难度，四个晚上，别急着点头答应。先把档案袋收好。工号 A-CLOUD-S81，第一次来，我不认识你。
+     | 潮声房在最东头。十一点半涨潮，窗框会抖；抖得没有规律，那反倒还算好事。老板陈老倌每晚十一点收走全院拖鞋，他只给规矩，不给解释：收音机自己响时，先把音量旋钮逆时针旋到底，再决定听不听（RULE-RAD-01）；拖鞋收走之后，无论谁敲门，都要光脚开门（RULE-RAD-04）。你要是问东屋，他只会说“一直有人住”。
+     | 现在离两点还有一阵。你可以翻翻抽屉里那只铁皮烟盒，也可以下楼陪老板抽根烟、套几句话，或者什么都不动，就坐着听海。
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "活不挑人，声音挑。这单是中等难度，四个晚上，别急着点头答应。先把档案袋收好。工号 A-CLOUD-S81，第一次来，我不认识你。\n潮声房在最东头。十一点半涨潮，窗框会抖；抖得没有规律，那反倒还算好事。老板陈老倌每晚十一点收走全院拖鞋，他只给规矩，不给解释：收音机自己响时，先把音量旋钮逆时针旋到底，再决定听不听（RULE-RAD-01）；拖鞋收走之后，无论谁敲门，都要光脚开门（RULE-RAD-04）。你要是问东屋，他只会说“一直有人住”。\n现在离两点还有一阵。你可以翻翻抽屉里那只铁皮烟盒，也可以下楼陪老板抽根烟、套几句话，或者什么都不动，就坐着听海。\n\n---\n🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 1 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}
+
+== 第 2 轮  工号=A-CLOUD-S81  会话=9cc454c0-3c7a-4608-8b89-dbc69947a3ae
+   玩家原话：继续，别换活。
+   workflow_run_id = 8bbeca3c-d930-4153-b283-6cf1b7bbff70   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = 2d223113-d7ec-4fea-987c-05566fd7d106   conversation_id = 9cc454c0-3c7a-4608-8b89-dbc69947a3ae   task_id = 4c57e347-fb6b-4875-8068-cce11850ca04
+   运行状态 = succeeded   本地整轮计时 = 15.1 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 检索相关档案 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000109s
+     ok llm            意图与关键词抽取               status=succeeded  2.596554s
+     ok code           解析分类结果                 status=succeeded  0.077906s
+     ok code           组装请求体                  status=succeeded  0.075018s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.400884s
+     ok code           取回 scope_id            status=succeeded  0.167399s
+     ok http-request   读取玩家记忆                 status=succeeded  0.475675s
+     ok http-request   按顺序读档案袋                status=succeeded  0.372503s
+     ok code           解析记忆条目                 status=succeeded  0.176718s
+     ok code           组装检索请求体                status=succeeded  0.221043s
+        outputs={"active_scene_id": "scn_seaside_radio", "scene_body": "{\"taste\": \"继续，别换活。 电台 声音 活\", \"scene_id\": \"scn_seaside_radio\", \"revealed_csv\": \"\"}", "scene_source": "conversation", "search_body": "{\"query\": \"玩家打算留在原地，继续当前这单活，不更换场景。 继续，别换活。\", \"scene_id\": \"scn_seaside_radio\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"电台,声音,活\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": "scn_seaside_radio"
+        场景来源："scene_source": "conversation"
+     ok if-else        派单还是行动                 status=succeeded  0.000132s
+     ok http-request   检索相关档案(seekdb)         status=succeeded  0.849091s
+     ok variable-aggregator 档案响应聚合                 status=succeeded  7.2e-05s
+     ok code           拼装档案块                  status=succeeded  0.177562s
+        本轮可引用的编号："codes_csv": "RULE-RAD-02,ITEM-RAD-01,RULE-RAD-04,END-RAD-02,ITEM-RAD-02,END-RAD-01,END-RAD-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-RAD-05,RULE-RAD-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  7.640272s
+     ok code           裁决校验与记忆文案              status=succeeded  0.100666s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：RULE-RAD-02"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.001625s
+     ok http-request   写回玩家记忆                 status=succeeded  0.477731s
+     ok answer         回复玩家                   status=succeeded  0.000205s
+   泄露自检：本轮封存中=RULE-RAD-05,RULE-RAD-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 3069, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 1263, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 4332, "total_price": "0", "currency": "USD", "latency": 10.213, "time_to_fi…
+   主持人回复：
+     | 工号 A-CLOUD-S81，你头一回进门就丢下一句「派个跟声音有关、中等难度的活」，我照办了；现在你要的是继续，不是换。一点五十三，收音机绿灯自己亮起，女声报出歌名，尾音直直坠下去，接着是三秒空白。潮气像被抽走。你的舌尖有点发痒，但先忍住。空白过去，电流声回到原状。窗外海面有人在数：一、二、三、四，数到七就停了。抽屉里烟盒的铜片磕了一下，像提醒你还有东西没看。嗓子眼里那股痒还没退。你可以坐着等下一个整点，把耳朵凑到喇叭边听清歌名后面那串船号，或者干脆套上鞋出门去踩那串湿脚印看看。
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 2 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：RULE-RAD-02（本轮命中 5 条：RULE-RAD-02、ITEM-RAD-01、RULE-RAD-04、END-RAD-02、ITEM-RAD-02）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "工号 A-CLOUD-S81，你头一回进门就丢下一句「派个跟声音有关、中等难度的活」，我照办了；现在你要的是继续，不是换。一点五十三，收音机绿灯自己亮起，女声报出歌名，尾音直直坠下去，接着是三秒空白。潮气像被抽走。你的舌尖有点发痒，但先忍住。空白过去，电流声回到原状。窗外海面有人在数：一、二、三、四，数到七就停了。抽屉里烟盒的铜片磕了一下，像提醒你还有东西没看。嗓子眼里那股痒还没退。你可以坐着等下一个整点，把耳朵凑到喇叭边听清歌名后面那串船号，或者干脆套上鞋出门去踩那串湿脚印看看。\n\n---\n🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 2 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：RULE-RAD-02（本轮命中 5 条：RULE-RAD-02、ITEM-RAD-01、RULE-RAD-04、END-RAD-02、ITEM-RAD-02）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}
+
+== 第 3 轮  工号=A-CLOUD-S81  会话=9cc454c0-3c7a-4608-8b89-dbc69947a3ae
+   玩家原话：接着讲上一局。
+   workflow_run_id = 8e2206c8-6e3a-4ee4-8831-02c41d5cc65e   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = 862380de-af80-4ed8-bbfd-279e9179423a   conversation_id = 9cc454c0-3c7a-4608-8b89-dbc69947a3ae   task_id = 46ed2882-e866-4f07-be7b-2cf8e66d4860
+   运行状态 = succeeded   本地整轮计时 = 17.9 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000138s
+     ok llm            意图与关键词抽取               status=succeeded  2.85213s
+     ok code           解析分类结果                 status=succeeded  0.083437s
+     ok code           组装请求体                  status=succeeded  0.061264s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.379182s
+     ok code           取回 scope_id            status=succeeded  0.066312s
+     ok http-request   读取玩家记忆                 status=succeeded  0.625799s
+     ok http-request   按顺序读档案袋                status=succeeded  0.38006s
+     ok code           解析记忆条目                 status=succeeded  0.06338s
+     ok code           组装检索请求体                status=succeeded  0.099719s
+        outputs={"active_scene_id": "scn_seaside_radio", "scene_body": "{\"taste\": \"接着讲上一局。 电台 声音 档案\", \"scene_id\": \"scn_seaside_radio\", \"revealed_csv\": \"\"}", "scene_source": "conversation", "search_body": "{\"query\": \"玩家打算接着上一局的进度继续，不换活。 接着讲上一局。\", \"scene_id\": \"scn_seaside_radio\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"电台,声音,档案\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除：(本轮没有这个字段)
+        本轮认定的场景："scene_id": "scn_seaside_radio"
+        场景来源："scene_source": "conversation"
+     ok if-else        派单还是行动                 status=succeeded  0.000154s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  0.880734s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_seaside_radio\",\"title\":\"礁石村的深夜电台\",\"one_line\":\"这台收音机只在凌晨两点后放节目，点歌的都是还没回来的人。\",\"brief\":\"礁石村东头的家庭旅馆，一层六间房，你住最东的潮声房。屋里一台铁皮掉漆的红灯牌收音机，旋钮发涩，转动时能摸到一层黏的盐。夜里十一点半涨潮，海声把窗框震得轻微打颤，空气里是海藻腐烂混着柴油的味道。凌晨两点收音机自己响，只有一个台：女声报歌名、报船号、报“还差几个”。老板每晚十一点收走全院拖鞋，他说音量在“1”以下不算听；可他自己从不开东边那间的门。你为三年前随船不见的父亲而来，只剩四个夜晚，你要弄清他最后一晚点的是哪首歌。\",\"tone\":\"主持人像夜里陪聊的本地人，句子短，用“吧”“呢”收尾；不吓唬人，但每次你决定照老板说的做时，它会先一字不差重复你听到的原话，再让你选。\",\"difficulty\":2,\"danger\":3,\"tags\":\"海边,声音,民俗,渔村\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_seaside_radio:rule:RULE-RAD-01\",\"code\":\"RULE-RAD-01\",\"kind\":\"rule\",\"scene_id\":\"scn_seaside_radio\",\"title\":\"先旋到零，再决定听不听\",\"…
+        后端回显的排除幕："reroll_excluded_scene_id":""
+        本轮认定的场景："scene_id":"scn_seaside_radio"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  8.4e-05s
+     ok code           拼装档案块                  status=succeeded  0.06573s
+        本轮可引用的编号："codes_csv": "RULE-RAD-01,RULE-RAD-02,RULE-RAD-03,RULE-RAD-04,ITEM-RAD-01,ITEM-RAD-02,ITEM-RAD-03,NPC-RAD-01,NPC-RAD-02,OMEN-RAD-01,OMEN-RAD-02,OMEN-RAD-03,END-RAD-01,END-RAD-02,END-RAD-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-RAD-05,RULE-RAD-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  8.530392s
+     ok code           裁决校验与记忆文案              status=succeeded  0.089316s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：OMEN-RAD-01"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.001869s
+     ok http-request   写回玩家记忆                 status=succeeded  0.530108s
+     ok answer         回复玩家                   status=succeeded  0.000235s
+   泄露自检：本轮封存中=RULE-RAD-05,RULE-RAD-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 4891, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 1572, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 6463, "total_price": "0", "currency": "USD", "latency": 11.358, "time_to_fi…
+   主持人回复：
+     | 两点整，没人碰的旋钮自己「嗒、嗒」跳了两格，铁皮外壳凉得像刚从海里捞上来（OMEN-RAD-01）。女声还没开口，先叹了口气。你的手仍搁在旋钮上，逆时针旋到底，还来得及（RULE-RAD-01）。窗框这样抖着还算稳，海声也没有变成三下一停，这一样还稳得住。墙角那截电线松着，烟盒里那只两脚插头一直没人动过，铜片绿得发暗。可这屋子的规矩不只写在纸上，你翻得越用力，越像有人在隔壁听你翻。你可以先把音量压到零，也可以趁她念名字前拉开抽屉、看看烟盒里那张纸，或者光脚站到门槛边，瞧瞧外头的湿脚印是不是朝里。
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 3 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：OMEN-RAD-01（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "两点整，没人碰的旋钮自己「嗒、嗒」跳了两格，铁皮外壳凉得像刚从海里捞上来（OMEN-RAD-01）。女声还没开口，先叹了口气。你的手仍搁在旋钮上，逆时针旋到底，还来得及（RULE-RAD-01）。窗框这样抖着还算稳，海声也没有变成三下一停，这一样还稳得住。墙角那截电线松着，烟盒里那只两脚插头一直没人动过，铜片绿得发暗。可这屋子的规矩不只写在纸上，你翻得越用力，越像有人在隔壁听你翻。你可以先把音量压到零，也可以趁她念名字前拉开抽屉、看看烟盒里那张纸，或者光脚站到门槛边，瞧瞧外头的湿脚印是不是朝里。\n\n---\n🪪 工号 `A-CLOUD-S81` ｜ 🎬 礁石村的深夜电台 ｜ 第 3 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：OMEN-RAD-01（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}
+
+== 第 4 轮  工号=A-CLOUD-S81  会话=9cc454c0-3c7a-4608-8b89-dbc69947a3ae
+   玩家原话：换个场景，重新派单吧。
+   workflow_run_id = ab4cf29d-4fc5-4ad2-8a26-dafca6ace501   (workflow_id=375be8cc-0c15-4050-953d-c3d34c7e6689)
+   message_id = c452d29e-8fb6-4ae1-a8af-4d060424cecb   conversation_id = 9cc454c0-3c7a-4608-8b89-dbc69947a3ae   task_id = 68b1aeeb-2ef1-412d-8eea-300b3214ca3e
+   运行状态 = succeeded   本地整轮计时 = 17.8 s
+   节点记录（node_finished 事件 19 条，另有 node_started 19 条；if-else 二分叉，本轮只走 取场景档案包 那一侧，所以执行的是 19 个节点（DSL 共 20 个））：
+     ok start          派单台                    status=succeeded  0.000161s
+     ok llm            意图与关键词抽取               status=succeeded  1.798656s
+     ok code           解析分类结果                 status=succeeded  0.421917s
+     ok code           组装请求体                  status=succeeded  0.276095s
+     ok http-request   建立/复用工号档案袋             status=succeeded  0.450144s
+     ok code           取回 scope_id            status=succeeded  0.195405s
+     ok http-request   读取玩家记忆                 status=succeeded  0.598891s
+     ok http-request   按顺序读档案袋                status=succeeded  0.464519s
+     ok code           解析记忆条目                 status=succeeded  0.110938s
+     ok code           组装检索请求体                status=succeeded  0.294174s
+        outputs={"active_scene_id": "", "scene_body": "{\"taste\": \"换个场景，重新派单吧。 场景 派单 电台\", \"scene_id\": \"\", \"revealed_csv\": \"\", \"exclude_scene_id\": \"scn_seaside_radio\"}", "scene_source": "reroll", "search_body": "{\"query\": \"玩家打算更换场景，重新派单。 换个场景，重新派单吧。\", \"scene_id\": \"\", \"kinds_csv\": \"rule,omen,item,npc,ending\", \"keywords_csv\": \"场景,派单,电台\", \"top_k\": 6, \"revealed_csv\": \"\"}"}
+        上一幕是否交给后端排除："exclude_scene_id": "scn_seaside_radio"
+        本轮认定的场景："scene_id": ""
+        场景来源："scene_source": "reroll"
+     ok if-else        派单还是行动                 status=succeeded  0.000154s
+     ok http-request   取场景档案包(seekdb)         status=succeeded  3.031183s
+        outputs={"status_code": 200, "body": "{\"ok\":true,\"scene\":{\"scene_id\":\"scn_convenience_store\",\"title\":\"白杨便利的第十一夜\",\"one_line\":\"手册第7页写着：04:00 后别给穿拖鞋的客人结账——可今晚除了你，全员拖鞋。\",\"brief\":\"城北环一路的24小时便利店白杨便利，玻璃门正对公交站。冷柜压缩机每90秒启一次，关东煮的汤在凌晨会起一层白膜，空气里汤料的咸味混着新塑料袋的滑石粉味。手册是三本活页装订，第十一页被撕掉了；收银机下压着上一任留下的字条，他在这里只上到第11天就再没来过。03:47 你补完货架抬头，店里还剩四个客人：买烟的、坐窗边喝汤的、在冷柜前一直没开门的、在门口换零钱的，四个人都穿拖鞋。你要熬到06:00，把交接班单签字交给早班。\",\"tone\":\"主持人像另一个熬夜班的人，语速慢、带自嘲。你读手册时它会把字条一字不差念给你听，念完补一句：“我念完了，没说我信。”\",\"difficulty\":5,\"danger\":5,\"tags\":\"都市,职业,规则叠加,夜班\"},\"pack\":{\"rule\":[{\"entry_id\":\"scn_convenience_store:rule:RULE-KIO-01\",\"code\":\"RULE-KIO-01\",\"kind\":\"rule\",\"scene_id\":\"scn_convenience_store\",\"title\":\"压…
+        后端回显的排除幕："reroll_excluded_scene_id":"scn_seaside_radio"
+        本轮认定的场景："scene_id":"scn_convenience_store"
+        派单口味：(本轮没有这个字段)
+     ok variable-aggregator 档案响应聚合                 status=succeeded  8.6e-05s
+     ok code           拼装档案块                  status=succeeded  0.163747s
+        本轮可引用的编号："codes_csv": "RULE-KIO-01,RULE-KIO-02,RULE-KIO-03,RULE-KIO-04,ITEM-KIO-01,ITEM-KIO-02,ITEM-KIO-03,NPC-KIO-01,NPC-KIO-02,OMEN-KIO-01,OMEN-KIO-02,OMEN-KIO-03,END-KIO-01,END-KIO-02,END-KIO-03"
+        本轮允许解锁的封存编号："locked_csv": "RULE-KIO-05,RULE-KIO-06"
+     ok llm            怪谈主持人（裁决+叙述）           status=succeeded  7.707516s
+     ok code           裁决校验与记忆文案              status=succeeded  0.210308s
+        本轮记忆 kind："mem_kind": "progress"
+        累计已解锁封存："revealed_next": ""
+        累计已达成结局："endings_next": ""
+        本轮引用："cite_line": "本轮引用：无"
+        叙述里被抹掉的封存编号："narration_redacted": ""
+        局面："stage_next": "playing"
+     ok assigner       更新玩家状态                 status=succeeded  0.00189s
+     ok http-request   写回玩家记忆                 status=succeeded  0.531742s
+     ok answer         回复玩家                   status=succeeded  0.000222s
+   泄露自检：本轮封存中=RULE-KIO-05,RULE-KIO-06；回复里出现的封存编号=无；回复里的区间写法=无；塌成固定文案=否
+   usage = {"prompt_tokens": 5830, "prompt_unit_price": "0", "prompt_price_unit": "0", "prompt_price": "0", "completion_tokens": 1342, "completion_unit_price": "0", "completion_price_unit": "0", "completion_price": "0", "total_tokens": 7172, "total_price": "0", "currency": "USD", "latency": 9.483, "time_to_fir…
+   主持人回复：
+     | 换班。上一单收在礁石村那间潮声房，预兆 OMEN-RAD-01 亮过一次，还疑似碰到封存 RULE-RAD-05——那笔账先记着，没结。这单：白杨便利，城北环一路，24 小时，玻璃门正对公交站。03:47，你补完货架抬头，店里还剩四个客人：买烟的、坐窗边喝汤的、在冷柜前一直没开门的、在门口换零钱的，四个人都穿拖鞋。手册第 7 页写着 04:00 后别给穿拖鞋的客人结账，第十一页被撕掉了。收银机下压着上一任的字条，他在这儿上到第 11 天就再没来过。冷柜压缩机每 90 秒启一次，关东煮的汤起了层白膜。你要熬到 06:00，把交接班单签字交给早班。先数一遍客人，或者去翻翻牛奶箱那边，也可以趁 04:00 之前把买烟那位先结了。你确定要从哪一样开始？
+     | 
+     | ---
+     | 🪪 工号 `A-CLOUD-S81` ｜ 🎬 白杨便利的第十一夜 ｜ 第 4 轮 ｜ 心情 uneasy
+     | 📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）
+     | ⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：
+     | 🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）
+     | 
+     | > 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。
+   本轮工作流输出 = {"answer": "换班。上一单收在礁石村那间潮声房，预兆 OMEN-RAD-01 亮过一次，还疑似碰到封存 RULE-RAD-05——那笔账先记着，没结。这单：白杨便利，城北环一路，24 小时，玻璃门正对公交站。03:47，你补完货架抬头，店里还剩四个客人：买烟的、坐窗边喝汤的、在冷柜前一直没开门的、在门口换零钱的，四个人都穿拖鞋。手册第 7 页写着 04:00 后别给穿拖鞋的客人结账，第十一页被撕掉了。收银机下压着上一任的字条，他在这儿上到第 11 天就再没来过。冷柜压缩机每 90 秒启一次，关东煮的汤起了层白膜。你要熬到 06:00，把交接班单签字交给早班。先数一遍客人，或者去翻翻牛奶箱那边，也可以趁 04:00 之前把买烟那位先结了。你确定要从哪一样开始？\n\n---\n🪪 工号 `A-CLOUD-S81` ｜ 🎬 白杨便利的第十一夜 ｜ 第 4 轮 ｜ 心情 uneasy\n📁 档案引用：本轮引用：无（4 条规则可读｜封存 2 条）\n⛔ 累计违规： ｜ 🏁 结局收集： ｜ 🔓 已解锁封存：\n🧠 已写入 PowerContext 记忆（kind=`progress`，scope=`scp_1pzngj8v7zkn7hk62hq3wvxf7a`，状态 `created_or_reused`）\n\n> 说「查档案」核对规则原文；说「换场景」重新派单；随时可以试着违规。", "files": []}
