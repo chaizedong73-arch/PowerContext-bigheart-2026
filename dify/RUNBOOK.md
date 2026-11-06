@@ -213,6 +213,8 @@ cd dify && python3 tools/cloud_run_trace.py s3_same_conversation   # 或 s10_rer
 
 输出 `evidence/cloud_run_<场景>.txt`，文件头写上 DSL 的 sha256 与 `git HEAD`，运行记录因此能回溯到提交文件。
 
+两个文件头里，**真正咬死的是 DSL 的 sha256**：`git HEAD` 只是采集时本机分支的偶然而已——只要之后发生过 rebase（本项目就遇过一次：远端 head 领先，把本地两枚提交重新落上去，hash 全换），那行 HEAD 会指向一个本地都找不到的孤儿提交，而证据内容一点没变。核对一份旧证据时先比 sha256，别拿那行 hash 去 `git show`。
+
 每轮还自动写一行**泄露自检**：
 
 ```
