@@ -25,14 +25,14 @@
 
 ## 4. 提交材料总清单（提交前逐项打勾）
 
-- [ ] **网站 URL**：Qoder Sites 公开链接
+- [x] **网站 URL**：https://recallloop-coach-g913y85jmem.qoder.zone （Qoder Sites，public，2026-11-07 核对线上内容与仓库 `qoder/app/static/` 一致、匿名可访问）
 - [ ] **代码仓库**：`https://github.com/chaizedong73-arch/PowerContext-bigheart-2026`（分支 `2026-competition-ecosystem`，代码在 `qoder/app/`）
 - [ ] **运行说明**：`qoder/RUNBOOK.md`（含 seekdb 部署/接入步骤、PowerContext 部署/接入步骤）
 - [ ] **验证样例**：`qoder/VALIDATION.md`（初始数据 + 输入 + 步骤 + 预期结果 + 技术发挥作用记录，执行记录已回填）
-- [ ] **Qoder 开发记录**：对话截图/录屏 + 账号 UID
-- [ ] **使用效果数据**：使用人数/次数、提效对比、反馈（附访问统计截图，见 VALIDATION.md 第 4 节）
-- [ ] **无真实 API Key**：`git grep -iE "sk-|api[_-]?key\s*=\s*['\"]"` 结果为空
-- [ ] 网站可匿名访问且六项内容齐全
+- [ ] **Qoder 开发记录**：对话截图/录屏 + 账号 UID（⬜ 截图待归集进 `site-material/qoder-log/`，见其 README）
+- [ ] **使用效果数据**：使用人数/次数、提效对比、反馈（附访问统计截图，见 VALIDATION.md 第 4 节）（◐ PV=4 已回填文档，统计截图与自用记录待补）
+- [x] **无真实 API Key**：`git grep -iE "sk-|api[_-]?key\s*=\s*['\"]"` 命中的两行均为 `ask-citations`/`ask-filtered` 文件名误报，实查为空
+- [x] 网站可匿名访问且六项内容齐全
 
 ## 5. 评分维度自查（最后过一遍）
 

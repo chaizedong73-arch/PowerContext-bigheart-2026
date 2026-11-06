@@ -52,6 +52,13 @@
 - 提效对比：同一批资料「不使用工具找回一个知识点」vs「在问答页 10 秒带出处定位」的时间对比记录。
 - 若发布公网，附 Qoder Sites 访问统计截图。
 
+**发布与访问数据（2026-11-07 核对回填）：**
+
+- 公网地址：`https://recallloop-coach-g913y85jmem.qoder.zone`（Qoder Sites，access_mode=public，任何人都可访问）。
+- 线上内容核对：`index.html` / `app.js` / `styles.css` 与仓库 `qoder/app/static/` 当前提交逐字节一致（仅平台注入水印脚本与换行符差异）；演示模式（后端未连接自动降级）匿名可访问。
+- Qoder Sites 访问统计：上线至今 PV=4（平台口径 `coverage: partial`，采集不全，仅作量级参考）。
+- 六项必备内容均在「关于」页：项目简介 / 解决的问题 / 核心功能 / 演示（内置数据真实渲染）/ 代码仓库链接 / 体验入口。
+
 ## 5. 执行记录（阶段 5 回填）
 
 运行环境：WSL2 Ubuntu，pyseekdb 1.4.0.post1（嵌入式，`SEEKDB_PATH=/home/chaizedong/recallloop-data/seekdb`，非 /mnt/c）；PowerContext Server 1.2.0（`http://127.0.0.1:8000`）；应用 uvicorn `127.0.0.1:8100`；scope `scp_4y5bypa0y6njp369ykn7btggvt`；嵌入器 local（384 维确定性哈希，无 API Key）。
