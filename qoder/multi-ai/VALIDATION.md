@@ -52,6 +52,14 @@ bash install.sh                      # venv + 依赖 + 嵌入模型(int8) + 自�
 - **步骤**：客户端发起 tools/call；轻壳 spawn 冷启动 worker（`tools/list` 先行验证）。
 - **预期**：约 10-20 秒返回完整简报（首次含模型加载）；调用台账 +1；worker 退出即注销、无残留进程。
 
+### V5 PowerContext 记忆复用（记忆保存 → 后续复用闭环）
+
+- **前置**：`uv tool install --force "powercontext[cli,server]==1.2.0"`，`powercontext server run`（默认 127.0.0.1:8000）。
+- **步骤**：同一 topic 连续生成两次简报（V3 命令跑两遍）。
+- **预期**：第一次输出 `[pc] PowerContext 已记录：entry=... artifact=...`（memory/remember + handoff 工件 upsert）；第二次输出 `[pc] 历史交接记忆命中 N 条` 且简报头部出现「**历史交接记忆**：PowerContext 命中…」——上次交接的记录在本次接手中真实复用；PowerContext 端可查到该记忆条目与 handoff 工件。
+- **降级**：PowerContext Server 不可达时钩子静默跳过、简报照常生成，不阻塞其余用例。
+- **验证状态**：2026-11-12 已用协议一致性 mock Server 实测双轮通过（写入 → 下次命中复用，简报头部可见上次交接摘要）。
+
 ## 4. 性能与隐私事实
 
 - 简报全链内存峰值 ~0.5GB（原 pyseekdb+torch 路线 ~1.4GB，-68%）；生成一份简报 5-8 秒。

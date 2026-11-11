@@ -8,3 +8,188 @@ df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
 === 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
 df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
      0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentA  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.55  agentA:demo-s1
+=== 二手书 交易小程序 校园:agentB  Ncorpus=2  ident=['二手书', '交易小程序', '校园'] ===
+df:  {'二手书': 2, '交易小程序': 2, '校园': 2}
+     0.73  agentB:demo-s2
+=== 窗口提醒 任务跟踪 提醒项目 工作环境 现场恢复  Ncorpus=144  ident=['任务跟踪', '工作环境', '工作现场', '工作现场一键恢复', '提醒项目', '现场恢复', '真实笔记', '窗口提醒'] ===
+df:  {'提醒项目': 0, '任务跟踪': 1, '现场恢复': 1, '工作现场': 2, '工作现场一键恢复': 2, '工作环境': 3, '真实笔记': 3, '窗口提醒': 8}
+   108.75  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+    32.48  workbuddy:5cfdaec2-df3d-46f0-9e60-3e800faded89
+     9.40  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
+     7.45  workbuddy:d5f98ab9-0600-4192-8949-eade0344ec46
+     7.41  zcode:sess_9b573ba2-74f3-4126-9558-974a17113bd8
+     6.56  zcode:session_5b2a6c9b6c0c6528ba65403f84f551ad
+     5.67  workbuddy:4a58430a-eb1a-4144-b95c-80897f8a1070
+     2.84  deepseek:session-097d0198-199c-46c2-b0d2-4b99ef02079a
+     2.84  zcode:session_8f657714380300ebcd96940c5bebb731
+     2.84  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+=== 窗口提醒 任务跟踪 提醒:zcode  Ncorpus=144  ident=['任务跟踪', '工作环境', '工作现场', '工作现场一键恢复', '提醒项目', '现场恢复', '真实笔记', '窗口提醒'] ===
+df:  {'提醒项目': 0, '任务跟踪': 1, '现场恢复': 1, '工作现场': 2, '工作现场一键恢复': 2, '工作环境': 3, '真实笔记': 3, '窗口提醒': 8}
+     7.41  zcode:sess_9b573ba2-74f3-4126-9558-974a17113bd8
+     6.56  zcode:session_5b2a6c9b6c0c6528ba65403f84f551ad
+     2.84  zcode:session_8f657714380300ebcd96940c5bebb731
+=== 窗口提醒 任务跟踪 提醒:chatgpt  Ncorpus=144  ident=['任务跟踪', '工作环境', '工作现场', '工作现场一键恢复', '提醒项目', '现场恢复', '真实笔记', '窗口提醒'] ===
+df:  {'提醒项目': 0, '任务跟踪': 1, '现场恢复': 1, '工作现场': 2, '工作现场一键恢复': 2, '工作环境': 3, '真实笔记': 3, '窗口提醒': 8}
+   108.75  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+     9.40  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
+     2.84  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+=== 进程登记 常驻进程 进程监测 注销 进程追踪 登  Ncorpus=144  ident=['AI进程监测', '已死未注销', '常驻进程', '注销', '登记规范', '进程登记', '进程监测', '进程追踪'] ===
+df:  {'AI进程监测': 0, '进程监测': 1, '进程追踪': 1, '已死未注销': 1, '常驻进程': 3, '登记规范': 3, '注销': 4, '进程登记': 7}
+    36.23  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+    32.08  deepseek:session-097d0198-199c-46c2-b0d2-4b99ef02079a
+    23.53  workbuddy:5cfdaec2-df3d-46f0-9e60-3e800faded89
+     3.47  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
+     2.96  deepseek:session-99f84a46-aa5b-43af-a96c-ba94f0c3d88d
+     2.96  chatgpt:01a15ce2-cf17-7c80-acf1-64cd27737abf
+     2.96  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+=== 进程登记 常驻进程 进程:deepseek  Ncorpus=144  ident=['AI进程监测', '已死未注销', '常驻进程', '注销', '登记规范', '进程登记', '进程监测', '进程追踪'] ===
+df:  {'AI进程监测': 0, '进程监测': 1, '进程追踪': 1, '已死未注销': 1, '常驻进程': 3, '登记规范': 3, '注销': 4, '进程登记': 7}
+    32.08  deepseek:session-097d0198-199c-46c2-b0d2-4b99ef02079a
+     2.96  deepseek:session-99f84a46-aa5b-43af-a96c-ba94f0c3d88d
+=== 进程登记 常驻进程 进程:chatgpt  Ncorpus=144  ident=['AI进程监测', '已死未注销', '常驻进程', '注销', '登记规范', '进程登记', '进程监测', '进程追踪'] ===
+df:  {'AI进程监测': 0, '进程监测': 1, '进程追踪': 1, '已死未注销': 1, '常驻进程': 3, '登记规范': 3, '注销': 4, '进程登记': 7}
+    36.23  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+     3.47  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
+     2.96  chatgpt:01a15ce2-cf17-7c80-acf1-64cd27737abf
+     2.96  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+=== BiDu 哔嘟 bilisoft B站 视频客户  Ncorpus=144  ident=['BiDu', 'B站', 'SmartScreen', 'bilisoft', '代码签名', '哔嘟', '帧批注', '抽帧', '视频客户端'] ===
+df:  {'视频客户端': 0, '代码签名': 1, 'SmartScreen': 1, '帧批注': 2, 'bilisoft': 3, '哔嘟': 4, 'BiDu': 6, '抽帧': 8, 'B站': 10, '播放': 13, '字幕': 13}
+    61.29  chatgpt:01a15488-9935-79e2-91d4-6a1bf1fe2fcd
+    43.94  deepseek:session-8ce32924-d111-40da-9f0c-5d8c10ec0ff9
+    40.68  workbuddy:5cfdaec2-df3d-46f0-9e60-3e800faded89
+    25.91  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+    17.50  deepseek:session-432cd077-c6d7-45d0-8ea4-20732ef481e3
+    10.64  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+     5.67  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
+     5.67  deepseek:session-097d0198-199c-46c2-b0d2-4b99ef02079a
+     3.10  zcode:sess_6daf1d4e-8839-4521-9479-b446aeab4f7b
+     2.84  deepseek:session-99f84a46-aa5b-43af-a96c-ba94f0c3d88d
+=== BiDu 哔嘟 bili:deepseek  Ncorpus=144  ident=['BiDu', 'B站', 'SmartScreen', 'bilisoft', '代码签名', '哔嘟', '帧批注', '抽帧', '视频客户端'] ===
+df:  {'视频客户端': 0, '代码签名': 1, 'SmartScreen': 1, '帧批注': 2, 'bilisoft': 3, '哔嘟': 4, 'BiDu': 6, '抽帧': 8, 'B站': 10, '播放': 13, '字幕': 13}
+    43.94  deepseek:session-8ce32924-d111-40da-9f0c-5d8c10ec0ff9
+    17.50  deepseek:session-432cd077-c6d7-45d0-8ea4-20732ef481e3
+     5.67  deepseek:session-097d0198-199c-46c2-b0d2-4b99ef02079a
+     2.84  deepseek:session-99f84a46-aa5b-43af-a96c-ba94f0c3d88d
+=== BiDu 哔嘟 bili:chatgpt  Ncorpus=144  ident=['BiDu', 'B站', 'SmartScreen', 'bilisoft', '代码签名', '哔嘟', '帧批注', '抽帧', '视频客户端'] ===
+df:  {'视频客户端': 0, '代码签名': 1, 'SmartScreen': 1, '帧批注': 2, 'bilisoft': 3, '哔嘟': 4, 'BiDu': 6, '抽帧': 8, 'B站': 10, '播放': 13, '字幕': 13}
+    61.29  chatgpt:01a15488-9935-79e2-91d4-6a1bf1fe2fcd
+    25.91  chatgpt:01a15434-6df2-7e21-baf2-f2dda2aa2bb9
+    10.64  chatgpt:01a15417-8c24-72a1-a8a9-b835196653a0
+     5.67  chatgpt:01a0c29a-071b-7b41-a488-0b0c87ce9ab4
