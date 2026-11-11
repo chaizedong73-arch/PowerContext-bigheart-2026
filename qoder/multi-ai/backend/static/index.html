@@ -3,181 +3,201 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>多AI协同 v2 · PowerContext + seekdb</title>
+  <title>多AI交接桥 · 控制台</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="logo">🕸️</span>
+      <span class="logo">🌉</span>
       <div>
-        <h1>多AI协同 v2</h1>
-        <p class="tagline">跨 agent 检索 → 派工闭环 → 共享记忆 → 证据化交接（PowerContext + seekdb）</p>
+        <h1>多AI交接桥 · 控制台 <span class="ver">v2</span></h1>
+        <p class="tagline">把 A agent 干过的事，带到 B agent 手里 —— ①采集 → ②归一化 → ③检索 → ④简报，每个环节可检查</p>
       </div>
     </div>
-    <div class="status-pill" id="statusPill" title="后端连接状态">检测中…</div>
+    <div class="status-pill" id="procPill" title="服务进程真实状态（5s 轮询 /proc）">连接中…</div>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="about" role="tab">关于</button>
-    <button class="tab" data-tab="search" role="tab">跨 agent 检索</button>
-    <button class="tab" data-tab="dispatch" role="tab">派工闭环</button>
-    <button class="tab" data-tab="memory" role="tab">共享记忆 · 交接</button>
-  </nav>
-
-  <div id="demoBanner" class="demo-banner hidden">
-    演示模式：后端未连接，使用<strong>真实运行快照</strong>（本机对 seekdb / PowerContext 实跑后裁剪内置）。按钮可点、流程可走通；完整实时功能见本地部署。
+  <div class="pipeline-strip" id="pipeStrip">
+    <button class="pipe-card" data-goto="stage1"><span class="pc-num">①</span><span class="pc-name">采集</span><span class="pc-metric" id="pm1">…</span><span class="pc-dot" id="pd1"></span></button>
+    <span class="pipe-arrow">→</span>
+    <button class="pipe-card" data-goto="stage2"><span class="pc-num">②</span><span class="pc-name">归一化</span><span class="pc-metric" id="pm2">…</span><span class="pc-dot" id="pd2"></span></button>
+    <span class="pipe-arrow">→</span>
+    <button class="pipe-card" data-goto="stage3"><span class="pc-num">③</span><span class="pc-name">检索</span><span class="pc-metric" id="pm3">…</span><span class="pc-dot" id="pd3"></span></button>
+    <span class="pipe-arrow">→</span>
+    <button class="pipe-card" data-goto="stage4"><span class="pc-num">④</span><span class="pc-name">简报</span><span class="pc-metric" id="pm4">…</span><span class="pc-dot" id="pd4"></span></button>
   </div>
 
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="stage1" role="tab">① 采集</button>
+    <button class="tab" data-tab="stage2" role="tab">② 归一化</button>
+    <button class="tab" data-tab="stage3" role="tab">③ 检索</button>
+    <button class="tab" data-tab="stage4" role="tab">④ 简报</button>
+    <button class="tab" data-tab="ledger" role="tab">台账 · 评测</button>
+    <button class="tab" data-tab="service" role="tab">服务 · 生命周期</button>
+  </nav>
+
   <main>
-    <!-- 关于 -->
-    <section class="panel active" id="panel-about">
-      <div class="hero">
-        <h2 class="hero-title">多AI协同底座 <span>v2</span></h2>
-        <p class="hero-sub">让不同 agent 快速找到彼此窗口里的环境与产出：一个父进程派工，各 agent 去<strong>资料库</strong>捞原始证据，父进程判质量、交叉核验、整合，再以<strong>可核验的证据</strong>交接给下一个 agent。</p>
-        <ul class="hero-lines">
-          <li>只读采集 DSH / WorkBuddy / Codex 的真实会话日志，凭据脱敏后归一为语料。</li>
-          <li>seekdb 三路混合检索（向量 + 关键词 + 结构化），每条命中带 <span class="mono">file:line</span> 引用；可按文件反查是哪个 agent 改的。</li>
-          <li>PowerContext 作跨 agent 共享记忆与原生交接：交接的每条结论都挂引用，接收方 <span class="mono">continue</span> 时服务端逐条核验证据是否可得。</li>
-        </ul>
-        <div class="hero-cta">
-          <button class="primary" data-goto="dispatch">体验派工闭环</button>
-          <button class="ghost btn-link" data-goto="search">跨 agent 检索</button>
-        </div>
-        <p class="hero-note">本页无需后端即可浏览；未连接后端时自动进入<strong>演示模式</strong>（内置真实运行快照）。</p>
+    <!-- ① 采集 -->
+    <section class="panel active" id="panel-stage1">
+      <div class="panel-head">
+        <h2>① 采集 —— v1 事件流（只读）</h2>
+        <span class="tech-badge" data-tech="v1 ai-agent-monitor 实时监控 append-only 写出 events.jsonl；桥只读。真实聊天留本机、不入仓库。行号即 ④ 简报里的引用出处。">技术说明 ⓘ</span>
       </div>
-
+      <div class="card"><div id="s1Meta" class="loading">读取中…</div></div>
       <div class="card">
-        <h3>数据流</h3>
-        <div class="pipeline">
-          <div class="pipe-node"><div class="ic">📥</div><strong>Ingest（Node）</strong><p>只读采集 3 个 agent 的会话日志，脱敏 → 归一 JSONL 语料</p></div>
-          <div class="pipe-arrow">→</div>
-          <div class="pipe-node"><div class="ic">🔎</div><strong>seekdb</strong><p>切块建向量索引，三路混合检索，带 file:line 出处</p></div>
-          <div class="pipe-arrow">→</div>
-          <div class="pipe-node"><div class="ic">🧠</div><strong>PowerContext</strong><p>跨 agent 共享记忆（L1 状态层）+ 原生交接（L2）</p></div>
-          <div class="pipe-arrow">→</div>
-          <div class="pipe-node"><div class="ic">🎯</div><strong>派工闭环</strong><p>父进程拆任务、判质量、交叉核验、整合交接</p></div>
+        <h3>原始行回查器 <span class="demo-tag">④ 简报/③ 检索引用的 events.jsonl:行号 在这里核对</span></h3>
+        <div class="filters">
+          <label>起始行<input id="evStart" type="number" value="1" min="1" /></label>
+          <label>条数<input id="evLimit" type="number" value="10" min="1" max="200" /></label>
+          <button id="btnEvLoad" class="primary">读取</button>
         </div>
-      </div>
-
-      <div class="card">
-        <h3>解决的 v1 局限</h3>
-        <div class="grid-3">
-          <div class="mini"><div class="mini-ic">🧵</div><strong>无共享记忆</strong><p>各 agent 各记各的，没有共同真相源。v2 用 PowerContext 做跨 agent 账本。</p></div>
-          <div class="mini"><div class="mini-ic">🤝</div><strong>无跨 agent 交接</strong><p>换 agent 就断片。v2 用原生交接工件，结论挂引用、服务端核验证据。</p></div>
-          <div class="mini"><div class="mini-ic">🎯</div><strong>无派工调度</strong><p>没有父进程分派。v2 拆任务派给真实 agent，判质量不够就换策略重捞。</p></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>接入的 agent <span class="demo-tag" id="corpusTag">语料统计</span></h3>
-        <div class="agent-grid" id="agentGrid"></div>
-        <p class="hint" id="statsHint">统计来自 seekdb 集合 <span class="mono">multi_ai_corpus</span>。</p>
-      </div>
-
-      <div class="card">
-        <h3>真实运行快照 <span class="demo-tag">演示模式内置数据的界面渲染</span></h3>
-        <div class="shots">
-          <figure class="shot">
-            <figcaption>① 跨 agent 检索（seekdb 三路混合，带出处）</figcaption>
-            <div class="shot-body" id="shotSearch"></div>
-          </figure>
-          <figure class="shot">
-            <figcaption>② 派工闭环（判质量 + 换策略重捞）</figcaption>
-            <div class="shot-body" id="shotDispatch"></div>
-          </figure>
-          <figure class="shot">
-            <figcaption>③ 交接证据核验（PowerContext continue）</figcaption>
-            <div class="shot-body" id="shotHandoff"></div>
-          </figure>
-        </div>
+        <div id="evRows" class="rows-box"><div class="empty">尚未读取</div></div>
       </div>
     </section>
 
-    <!-- 跨 agent 检索 -->
-    <section class="panel" id="panel-search">
+    <!-- ② 归一化 -->
+    <section class="panel" id="panel-stage2">
       <div class="panel-head">
-        <h2>跨 agent 检索</h2>
-        <span class="tech-badge" data-tech="seekdb：向量相似 + 关键词匹配 + 结构化(owner/kind/session)过滤，全量重排，返回带 file:line 出处的 Top-K">技术说明 ⓘ</span>
+        <h2>② 归一化 —— 语料 + 水位线</h2>
+        <span class="tech-badge" data-tech="events_to_corpus.normalize：message/change 只产新行、session 永远全量重算；redact 掩码后落 events-corpus*.jsonl；catchup 按行偏移水位线增量懒补进 seekdb 集合，无新行 early-return 连模型都不醒。">技术说明 ⓘ</span>
+      </div>
+      <div class="card"><div id="s2Stats" class="loading">读取中…</div></div>
+      <div class="card">
+        <h3>运行增量懒补 <span class="demo-tag">真实动作：水位线对比 → 有新行才嵌</span></h3>
+        <div class="row">
+          <button id="btnCatchup" class="primary">运行 catchup</button>
+          <span id="catchupMsg" class="msg"></span>
+        </div>
+        <pre id="catchupOut" class="context-box hidden"></pre>
       </div>
       <div class="card">
-        <label>检索词<input id="qInput" type="text" placeholder="例如：多AI协同 会话检索 混合检索 seekdb" /></label>
+        <h3>归一化语料抽样（redact 后）</h3>
         <div class="filters">
-          <label>按 agent 过滤<select id="qOwner"><option value="">全部 agent</option><option value="dsh">dsh</option><option value="workbuddy">workbuddy</option><option value="codex">codex</option></select></label>
-          <label>按类型过滤<select id="qKind"><option value="">全部类型</option><option value="message">message 对话</option><option value="change">change 产出</option><option value="session">session 会话</option></select></label>
+          <label>起始行<input id="cpStart" type="number" value="1" min="1" /></label>
+          <label>条数<input id="cpLimit" type="number" value="8" min="1" max="200" /></label>
+          <button id="btnCpLoad" class="ghost">读取</button>
+        </div>
+        <div id="cpRows" class="rows-box"><div class="empty">尚未读取</div></div>
+      </div>
+    </section>
+
+    <!-- ③ 检索 -->
+    <section class="panel" id="panel-stage3">
+      <div class="panel-head">
+        <h2>③ 检索 —— seekdb 三路混合</h2>
+        <span class="tech-badge" data-tech="向量 + 关键词 + 结构化过滤，全量重排；每条命中带 events.jsonl:行号 出处。集合与嵌入模型惰性加载，是否驻留（RSS）如实显示。">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <div id="s3Status" class="loading">读取中…</div>
+        <div class="row" style="margin-top:8px">
+          <button id="btnS3Load" class="primary">加载 seekdb 集合 + 嵌入模型</button>
+          <span id="s3LoadMsg" class="msg"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>混合检索实验台</h3>
+        <label>检索词<input id="qInput" type="text" placeholder="例如：窗口提醒 任务跟踪 提醒项目" /></label>
+        <div class="filters">
+          <label>按 agent<select id="qOwner"><option value="">全部</option></select></label>
+          <label>按类型<select id="qKind"><option value="">全部</option><option value="message">message</option><option value="change">change</option><option value="session">session</option></select></label>
           <label>Top-K<input id="qTopK" type="number" value="6" min="1" max="20" /></label>
         </div>
         <div class="row">
           <button id="btnSearch" class="primary">检索</button>
           <span id="searchMsg" class="msg"></span>
         </div>
+        <div id="s3Results" class="results" style="margin-top:10px"><div class="empty">尚未检索</div></div>
       </div>
       <div class="card">
-        <h3>按文件反查 <span class="tech-badge" data-tech="store.find_by_file：把归一化路径匹配到 change 记录，回答“这个文件是哪个 agent、哪次会话改的”">ⓘ</span></h3>
-        <div class="row">
-          <label class="inline" style="flex:1">文件路径<input id="fileInput" type="text" placeholder="例如 项目主页.md 或绝对路径" /></label>
-          <button id="btnFindFile" class="ghost">反查</button>
-        </div>
-        <div id="fileResults" class="results" style="margin-top:10px"></div>
+        <h3>检索日志（近 10 次）</h3>
+        <pre id="s3Rlog" class="context-box">未加载</pre>
       </div>
-      <div id="searchResults" class="results"></div>
     </section>
 
-    <!-- 派工闭环 -->
-    <section class="panel" id="panel-dispatch">
+    <!-- ④ 简报 -->
+    <section class="panel" id="panel-stage4">
       <div class="panel-head">
-        <h2>派工闭环</h2>
-        <span class="tech-badge" data-tech="父进程：拆任务→选真实目标 agent→各自去 seekdb 捞证据→按 覆盖/权威 判质量→不够则换检索策略重捞（预算内）→跨 agent 一致性核验→整合写共享记忆→原生交接">技术说明 ⓘ</span>
+        <h2>④ 简报 —— 《交接简报》生成器</h2>
+        <span class="tech-badge" data-tech="冷启动多 facet 检索 → 九段式自包含简报，每条带 events.jsonl:行号 溯源；不调 LLM、不做 AI 摘要。评测 3 用例机械打分 95.8（ST 基线）。分阶段异步：懒补 → 载入模型 → 检索+组装。">技术说明 ⓘ</span>
       </div>
       <div class="card">
-        <label>总目标（父 AI 据此拆子任务并派工）<input id="goalInput" type="text" placeholder="例如：多AI协同 会话检索 混合检索 seekdb" /></label>
+        <h3>生成一份真实简报</h3>
+        <label>接手意图<input id="bIntent" type="text" value="zcode 接手 chatgpt 的窗口提醒/任务跟踪项目" /></label>
+        <label>检索主题词<input id="bTopic" type="text" value="窗口提醒 任务跟踪 提醒项目 工作环境 现场恢复 真实笔记" /></label>
         <div class="filters">
-          <label>派给几个 agent<input id="numAgents" type="number" value="2" min="1" max="3" /></label>
-          <label>模式<select id="dispMode"><option value="continue-original-session">续接原会话</option><option value="new-subsession">新开子会话</option></select></label>
-          <label>每任务最大轮次<input id="maxRounds" type="number" value="2" min="1" max="3" /></label>
+          <label>交出方 src<select id="bSrc"><option value="chatgpt">chatgpt</option><option value="codex">codex</option><option value="dsh">dsh</option><option value="workbuddy">workbuddy</option><option value="">(不限)</option></select></label>
+          <label>接手方 dst<select id="bDst"><option value="zcode">zcode</option><option value="codex">codex</option><option value="trae">trae</option><option value="dsh">dsh</option><option value="workbuddy">workbuddy</option><option value="">(不限)</option></select></label>
+          <label class="inline"><input id="bCatchup" type="checkbox" checked /> 先懒补</label>
         </div>
         <div class="row">
-          <button id="btnDispatch" class="primary">运行派工闭环</button>
-          <span id="dispatchMsg" class="msg"></span>
+          <button id="btnBrief" class="primary">生成简报</button>
+          <span id="briefMsg" class="msg"></span>
         </div>
-        <p class="hint">闭环含多轮检索与 PowerContext 写入，实时运行约需数十秒；演示模式即时返回内置真实快照。</p>
+        <div id="s4Phases" class="phases hidden"></div>
       </div>
-      <div id="dispatchOut"></div>
+      <div class="card hidden" id="s4ResultCard">
+        <h3>简报成品 <span id="s4Meta" class="demo-tag"></span>
+          <button id="btnBriefRaw" class="ghost small" style="float:right">原文/分节切换</button></h3>
+        <div id="s4Timing" class="timing-chips"></div>
+        <div id="s4Brief" class="brief-view"></div>
+      </div>
+      <div class="card">
+        <h3>历史简报 <span class="demo-tag">控制台产物 + MCP 轻壳落盘副本</span></h3>
+        <div id="s4History" class="brief-list"><div class="empty">读取中…</div></div>
+      </div>
     </section>
 
-    <!-- 共享记忆 · 交接 -->
-    <section class="panel" id="panel-memory">
+    <!-- 台账 · 评测 -->
+    <section class="panel" id="panel-ledger">
       <div class="panel-head">
-        <h2>共享记忆 · 交接</h2>
-        <span class="tech-badge" data-tech="PowerContext：memory/search 检索共享记忆；context/prepare 取回历史上下文；handoff/continue 读回交接并由服务端核验每条引用证据是否可得">技术说明 ⓘ</span>
+        <h2>台账 · 评测 —— 桥真的被用了吗，用得多准</h2>
+        <span class="tech-badge" data-tech="call-ledger.jsonl：每次 MCP tools/call 在桥侧落一行（host/src/dst/耗时/字节），调用方编不了；评测为机械打分（events.jsonl 行号为答案 key，固定不改）。">技术说明 ⓘ</span>
       </div>
       <div class="card">
-        <h3>共享记忆状态 <span id="memStatus" class="chip">—</span></h3>
-        <div class="row">
-          <label class="inline" style="flex:1">检索记忆<input id="memQuery" type="text" placeholder="例如：派工结论 检索 决策" /></label>
-          <button id="btnMemSearch" class="primary">检索</button>
+        <h3>跨 agent 调用台账 <button id="btnLedgerReload" class="ghost small" style="float:right">刷新</button></h3>
+        <div id="ledgerRows" class="rows-box"><div class="empty">读取中…</div></div>
+      </div>
+      <div class="card">
+        <h3>评测报告（机械打分）</h3>
+        <div id="evalCards" class="eval-grid"><div class="empty">读取中…</div></div>
+      </div>
+    </section>
+
+    <!-- 服务 · 生命周期 -->
+    <section class="panel" id="panel-service">
+      <div class="panel-head">
+        <h2>服务 · 生命周期</h2>
+        <span class="tech-badge" data-tech="状态机：已停止→启动中→运行中→关闭中→已停止。状态来自 /proc 真实探测，不因点击就乐观改。重资产（嵌入模型）按需显式加载，RSS 如实报。">技术说明 ⓘ</span>
+      </div>
+      <div class="card">
+        <h3>当前状态 <span id="svcStateChip" class="chip">—</span></h3>
+        <div id="svcBody" class="loading">探测中…</div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnShutdown" class="danger">关闭服务（SIGTERM）</button>
+          <span id="svcMsg" class="msg"></span>
         </div>
-        <ul id="memHits" class="weak-list" style="margin-top:10px"><li class="empty">尚未检索</li></ul>
       </div>
       <div class="card">
-        <h3>历史上下文（context/prepare）</h3>
-        <pre id="memContext" class="context-box">加载中…</pre>
-      </div>
-      <div class="card">
-        <h3>当前交接工件 <span id="hoRev" class="pill-rev">—</span> <button id="btnReloadHandoff" class="ghost small">刷新</button></h3>
-        <div id="handoffBody"><div class="loading">加载中…</div></div>
+        <h3>启动 / 停止入口（回到最初状态的方式）</h3>
+        <ul class="weak-list">
+          <li>启动：双击 <code>multi-ai\start-bridge.cmd</code>（reg.cmd 登记 owner=zcode · name=handoff-bridge-console，浏览器开 <code>http://localhost:8765/</code>）</li>
+          <li>停止：本页「关闭服务」按钮，或 <code>multi-ai\stop-bridge.cmd</code>（按 PID 文件 SIGTERM，8s 不退才 SIGKILL）</li>
+          <li>资源释放：服务退出即释放全部内存；简报产物留在 <code>~/multi-ai-data/briefs/</code>，台账/语料不动</li>
+          <li>异常：端口被占 → 先 stop 再 start；启动失败窗口会显示原因，修后可重试</li>
+          <li>红线对齐：不偷偷常驻——本服务显式启停 + 进程登记；MCP 重 worker 依旧跑完即退</li>
+        </ul>
       </div>
     </section>
   </main>
 
   <footer class="foot">
-    <span>基于 OceanBase seekdb 与 PowerContext 构建</span>
-    <a href="https://github.com/chaizedong73-arch/PowerContext-bigheart-2026" target="_blank" rel="noopener">代码仓库</a>
-    <span class="foot-badge">Build with Qoder · OceanBase 2026</span>
+    <span>多AI交接桥（v2）· seekdb + PowerContext · 本地无云</span>
+    <a href="/legacy-demo.html">旧演示页</a>
+    <span class="foot-badge">ZC · 2026-11-07</span>
   </footer>
 
   <div id="techTip" class="tech-tip hidden"></div>
-  <script src="demo-data.js"></script>
-  <script src="app.js"></script>
+  <script src="bridge.js"></script>
 </body>
 </html>

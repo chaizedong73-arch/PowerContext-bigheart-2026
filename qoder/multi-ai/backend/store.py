@@ -139,6 +139,7 @@ def build_doc(rec: Dict) -> Optional[Dict]:
             "sessionTitle": rec.get("sessionTitle", ""), "role": role, "turn": rec.get("turn") or "",
             "at": int(rec.get("at") or 0), "srcFile": rec.get("srcFile", ""), "srcLine": str(rec.get("srcLine") or ""),
             "truncated": bool(rec.get("truncated")), "cwd": rec.get("cwd", ""),
+            "taskId": rec.get("taskId", ""), "dependsOn": rec.get("dependsOn", ""), "taskDone": bool(rec.get("taskDone")),
         }
     elif t == "change":
         action = rec.get("action", "")
@@ -152,7 +153,7 @@ def build_doc(rec: Dict) -> Optional[Dict]:
             "normalizedPath": rec.get("normalizedPath", ""), "status": status,
             "resultObserved": bool(rec.get("resultObserved")), "turn": rec.get("turn") or "",
             "at": int(rec.get("at") or 0), "srcFile": rec.get("srcFile", ""), "srcLine": str(rec.get("srcLine") or ""),
-            "cwd": rec.get("cwd", ""),
+            "cwd": rec.get("cwd", ""), "taskId": rec.get("taskId", ""),
         }
     elif t == "session":
         title = rec.get("title", "")
@@ -164,6 +165,7 @@ def build_doc(rec: Dict) -> Optional[Dict]:
             "state": rec.get("state", ""), "msgCount": int(rec.get("msgCount") or 0),
             "changeCount": int(rec.get("changeCount") or 0), "mtime": int(rec.get("mtime") or 0),
             "coverageComplete": bool(rec.get("coverageComplete")), "logFile": rec.get("logFile", ""),
+            "taskIds": rec.get("taskIds", ""),
         }
     else:
         return None
@@ -272,8 +274,13 @@ def hybrid_search(
     kind: Optional[str] = None,
     sessionId: Optional[str] = None,
     top_k: Optional[int] = None,
+    after: Optional[float] = None,
 ):
     """三路混合检索：稠密向量 + 稀疏关键词 + 结构化(owner/kind/sessionId)过滤。
+
+    after（0.7.2）：unix 秒时间窗下限，只返回 at ≥ after 的块——供交接简报的
+    「近期窗口 facet」使用，保证最近小会话不被历史高分条目整体挤出候选池。
+    默认 None = 历史行为完全不变。
 
     默认走全量混合（_hybrid_full）：载入全部块的向量与文本，对每条同时算 cosine 与关键词命中，
     加权融合 score=(1-w)*vec+w*kw。相比只对 ANN 候选重排，能召回向量排名靠后但关键词强匹配的块。
@@ -281,20 +288,25 @@ def hybrid_search(
     """
     k = top_k or config.SEARCH_TOP_K
     qvec = embedder.embed([query])[0]
-    filters = {"owner": owner, "kind": kind, "sessionId": sessionId}
+    filters = {"owner": owner, "kind": kind, "sessionId": sessionId, "after": after}
     has_data = _ensure_scan()
     if not _scan_cache["count"]:
         return [], {"query": query, "filters": filters, "mode": "empty", "candidates": 0, "results": []}
     if has_data and _scan_cache["mat"] is not None:
-        return _hybrid_full(query, qvec, owner, kind, sessionId, k)
+        return _hybrid_full(query, qvec, owner, kind, sessionId, k, after)
     return _hybrid_ann(query, qvec, owner, kind, sessionId, k)
 
 
-def _hybrid_full(query, qvec, owner, kind, sessionId, k):
-    ids = _scan_cache["ids"]
-    docs = _scan_cache["docs"]
-    metas = _scan_cache["metas"]
-    mat = _scan_cache["mat"]
+def _hybrid_full(query, qvec, owner, kind, sessionId, k, after=None):
+    return _fuse_full(_scan_cache["ids"], _scan_cache["docs"], _scan_cache["metas"], _scan_cache["mat"],
+                      qvec, query, owner, kind, sessionId, k, mode="full-hybrid", after=after)
+
+
+def _fuse_full(ids, docs, metas, mat, qvec, query, owner, kind, sessionId, k, mode="full-hybrid", after=None):
+    """全量融合打分：dense cosine + keyword 命中，score=(1-w)*vec+w*kw。
+
+    seekdb 版（_hybrid_full）与 light 版（store_light.hybrid_search）共用同一实现——
+    打分/过滤/citation 是一个事实，只存这一处。after=unix 秒时间窗下限（可选）。"""
     qv = _np.array(qvec, dtype=_np.float32)
     qn = float(_np.linalg.norm(qv)) or 1.0
     dense = mat @ (qv / qn)  # cosine 相似度（行已归一化）
@@ -303,6 +315,8 @@ def _hybrid_full(query, qvec, owner, kind, sessionId, k):
     scored = []
     for i, meta in enumerate(metas):
         if not meta or not _match_filters(meta, owner, kind, sessionId):
+            continue
+        if after and float(meta.get("at") or meta.get("mtime") or 0) < after:
             continue
         text = docs[i] if i < len(docs) else ""
         vec_sim = float(dense[i])
@@ -322,7 +336,7 @@ def _hybrid_full(query, qvec, owner, kind, sessionId, k):
         })
     log = {
         "query": query, "filters": {"owner": owner, "kind": kind, "sessionId": sessionId},
-        "mode": "full-hybrid", "scanned": len(metas), "candidates": len(scored),
+        "mode": mode, "scanned": len(metas), "candidates": len(scored),
         "results": [{"id": r["id"], "kind": r["meta"].get("kind"), "owner": r["meta"].get("owner"),
                      "score": r["score"], "vector": r["signals"]["vector"], "keyword": r["signals"]["keyword"],
                      "srcFile": r["citation"]["srcFile"], "srcLine": r["citation"]["srcLine"]} for r in results],
@@ -508,3 +522,21 @@ def stats() -> Dict:
             by_owner[ow] = by_owner.get(ow, 0) + 1
     return {"collection": config.COLLECTION_NAME, "count": count, "byKind": by_kind, "byOwner": by_owner,
             "seekdbPath": str(config.SEEKDB_PATH)}
+
+
+# ---------------- 后端分发（0.7.0）：MULTI_AI_STORE=light 时数据面整体换零 torch 实现 ----------------
+# 共享层（本文件，两后端同一事实）：build_doc / _meta_scalars / _keywords / _keyword_score /
+# _citation / _match_filters / normalize_path / _fuse_full。
+# 数据层（向量与块的存取+检索）切换：seekdb = 本文件 pyseekdb 实现；light = store_light
+# （docs.jsonl + emb.npy + numpy，绝不 import torch/pyseekdb）。store_light 末尾才 import，
+# 保证它内部 lazy `import store` 拿到的是完整模块。
+if (getattr(config, "STORE_PROVIDER", "seekdb") or "seekdb").strip().lower() == "light":
+    import store_light as _light_impl  # noqa: E402
+
+    import_corpus = _light_impl.import_corpus
+    reset_collection = _light_impl.reset_collection
+    hybrid_search = _light_impl.hybrid_search
+    find_by_file = _light_impl.find_by_file
+    list_sessions = _light_impl.list_sessions
+    stats = _light_impl.stats
+    _scan_all = _light_impl._scan_all

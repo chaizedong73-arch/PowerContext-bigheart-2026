@@ -293,3 +293,77 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 760px) { .agent-grid { grid-template-columns: 1fr; } .qbars { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===================== 交接桥控制台（bc · ZC 2026-11-07） ===================== */
+.ver { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; vertical-align: middle; }
+.status-pill.on { border-color: #2f6b46; color: #9fe0b8; }
+.status-pill.off { border-color: #6b2f2f; color: #e0a0a0; }
+
+/* 管线总览条 */
+.pipeline-strip { display: flex; align-items: center; gap: 8px; padding: 12px 22px 4px; max-width: 1180px; margin: 0 auto; }
+.pipe-card { display: flex; align-items: center; gap: 8px; flex: 1; background: var(--card, #171a21); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; color: var(--text); text-align: left; }
+.pipe-card:hover { border-color: var(--accent); }
+.pc-num { font-size: 18px; }
+.pc-name { font-weight: 600; }
+.pc-metric { margin-left: auto; font-size: 12px; color: var(--muted); }
+.pc-dot { width: 9px; height: 9px; border-radius: 50%; background: #555; flex: none; }
+.pc-dot.on { background: #34c26b; box-shadow: 0 0 6px #34c26b88; }
+.pc-dot.off { background: #555; }
+.pipeline-strip > .pipe-arrow { color: var(--muted); }
+
+/* 状态色与通用小件 */
+.dim { color: var(--muted); font-weight: 400; }
+.ok { color: #7fd6a0; }
+.warn { color: #ffc46b; }
+.error { color: #ff9a9a; padding: 8px; }
+table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.kv td { padding: 4px 8px 4px 0; vertical-align: top; border-bottom: 1px dashed rgba(255,255,255,.05); }
+table.kv td:first-child { color: var(--muted); white-space: nowrap; width: 90px; }
+.rows-box { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.rows-box .empty { color: var(--muted); padding: 10px; text-align: center; }
+.ev-row { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); font-size: 12.5px; }
+.ev-row.hl { border-color: var(--accent); background: rgba(120,170,255,.08); }
+.ev-n { color: var(--accent); flex: none; min-width: 56px; }
+.ev-t { white-space: pre-wrap; word-break: break-all; }
+
+/* ③ 检索结果 */
+.result { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.score-bar { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,.06); overflow: hidden; margin-bottom: 6px; }
+.score-bar span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); opacity: .75; }
+.score-bar b { position: absolute; right: 6px; top: -1px; font-size: 11px; color: #fff; }
+.r-text { font-size: 13px; line-height: 1.55; }
+.r-meta { display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+button.cite { background: rgba(120,170,255,.12); border: 1px solid rgba(120,170,255,.35); color: #9cc3ff; border-radius: 6px; padding: 1px 8px; font-size: 11.5px; cursor: pointer; }
+button.cite:hover { background: rgba(120,170,255,.25); }
+
+/* ④ 简报 */
+.phases { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.ph { font-size: 12px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--line); color: var(--muted); }
+.ph-wait { opacity: .45; }
+.ph-cur { border-color: var(--accent); color: var(--text); animation: phPulse 1.2s infinite; }
+.ph-done { border-color: #2f6b46; color: #9fe0b8; }
+.ph-err { border-color: #6b2f2f; color: #ff9a9a; }
+.ph-arrow { color: var(--muted); }
+@keyframes phPulse { 50% { opacity: .55; } }
+.timing-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.brief-view { display: flex; flex-direction: column; gap: 10px; }
+.brief-sec { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.brief-sec h4 { margin: 0 0 8px; color: var(--accent); font-size: 13.5px; }
+.brief-text { margin: 0; font-family: inherit; font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.brief-list { display: flex; flex-direction: column; gap: 6px; }
+.brief-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.brief-item .empty { color: var(--muted); }
+
+/* 台账 · 评测 */
+.eval-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.eval-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.eval-avg { font-size: 30px; }
+.eval-avg span { font-size: 13px; color: var(--muted); margin-left: 4px; }
+.eval-label { font-size: 12.5px; margin: 2px 0 10px; }
+.eval-case { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; border-top: 1px dashed rgba(255,255,255,.06); align-items: baseline; }
+.eval-case b { min-width: 44px; }
+.eval-case .dim { font-size: 11px; }
+
+/* 服务面板 */
+button.danger { background: transparent; border: 1px solid #6b2f2f; color: #ff9a9a; }
+button.danger:hover { background: rgba(180, 60, 60, .15); }
