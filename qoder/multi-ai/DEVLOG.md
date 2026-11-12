@@ -10,7 +10,7 @@
 | v0.5.0~v0.6.0（2026-11-07） | 控制台（管线四环节可检查软件）；AI 工作台原生模组化 | ZC（ZCode） | vault 维护日志 |
 | v0.7.0~0.7.4（2026-11-11~12） | light 零 torch 后端（简报全链内存 1458MB→472MB）；实时性时间窗检索与识别词会话归属；跨项目硬验收；GitHub 公开发布 | ZC | vault 维护日志 |
 | v0.7.5（2026-11-12） | 简报管线接入 PowerContext 记忆复用（生成前读历史 → 落盘后 remember+handoff 工件；协议一致性 mock 实测双轮通过） | ZC | VALIDATION.md V5 |
-| **本次赛题适配（2026-11-12）** | **V1–V5 验证真实跑通并回填**（VALIDATION §5：light/seekdb 双模式导入、检索、简报、MCP tools/call；PowerContext 真实 Server 双轮复用）；修复真实 Server 暴露的两处契约 bug（state/citations、remember 去重空 citation）；回归 94.6 不变。**Qoder Sites 展示页已发布**：`https://handoff-bridge-g913y85jmem.qoder.zone`（私有访问，公开需账号所有者授权） | **Qoder** | VALIDATION.md §5 + `demo-data/validation/` + 展示站 |
+| **本次赛题适配（2026-11-12）** | **V1–V5 验证真实跑通并回填**（VALIDATION §5：light/seekdb 双模式导入、检索、简报、MCP tools/call；PowerContext 真实 Server 双轮复用）；修复真实 Server 暴露的两处契约 bug（state/citations、remember 去重空 citation）；回归 94.6 不变。**Qoder Sites 展示页已发布并公开**：`https://handoff-bridge-g913y85jmem.qoder.zone` | **Qoder** | VALIDATION.md §5 + `demo-data/validation/` + 展示站 |
 
 ## 二、Qoder 会话截图槽位（提交前补齐）
 
