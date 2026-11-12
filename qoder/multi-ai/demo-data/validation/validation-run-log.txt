@@ -1,0 +1,93 @@
+# 验证执行记录（2026-11-12，本机 WSL2 实测）
+
+> 环境：WSL2 / `~/recallloop-venv` / 隔离数据目录 `~/multi-ai-data/comp-validate-*`（不触碰真实生产库）。
+> 全部输出取自实际运行，未改写；数值与产物副本同目录可核。
+
+## V1 语料导入（合成演示语料）
+
+light 模式：
+```
+[import] corpus=demo-data/sample-corpus.jsonl
+[import] seekdb=/home/chaizedong/multi-ai-data/comp-validate-light/seekdb  collection=hb_validate_light  embed=onnx/384d
+[import] {"ok": true, "corpus": "demo-data/sample-corpus.jsonl", "written": 12, "skipped": 0,
+          "byKind": {"message": 7, "change": 3, "session": 2}, "collectionCount": 12, "updated": 0,
+          "storePath": ".../comp-validate-light/light", "embeddingProvider": "onnx", "storeProvider": "light"}
+[stats] {"collection": "hb_validate_light", "count": 12,
+         "byKind": {"message": 7, "change": 3, "session": 2}, "byOwner": {"agentA": 7, "agentB": 5},
+         "storeProvider": "light"}
+```
+
+seekdb 模式（MULTI_AI_STORE=seekdb，真实 pyseekdb + ST 嵌入）：
+```
+[import] seekdb=/home/chaizedong/multi-ai-data/comp-validate-seekdb/seekdb  collection=hb_validate_seekdb  embed=local/384d
+[import] {"ok": true, "written": 12, "byKind": {"message": 7, "change": 3, "session": 2}, "collectionCount": 12,
+          "seekdbPath": ".../comp-validate-seekdb/seekdb", "embeddingProvider": "local"}
+[stats] {"collection": "hb_validate_seekdb", "count": 12, ...}
+```
+
+## V2 三路混合检索「支付 模块」
+
+结果 `(results, meta)` 元组，`mode=light-full-hybrid`，`scanned=12, candidates=12`，命中 2 条（seekdb 模式同为 2 条）：
+```
+results[0] score=0.6484 vector=0.414 keyword=1.0  srcFile=demo-events.jsonl srcLine=9
+results[1] score=0.5195 vector=0.1992 keyword=1.0  srcFile=demo-events.jsonl srcLine=4
+```
+与预期一致：命中 `demo-s2` 的支付评估（:9）与 `demo-s1` 的「尚未完成：支付模块还没有接」（:4），每条带 `srcFile:srcLine`。
+
+## V3 交接简报
+
+light / seekdb 两模式产物一致：
+```
+[brief] collection=hb_validate_light count=12 byOwner={'agentA': 7, 'agentB': 5}
+[brief] written=.../demo-brief-light.md bytes=2425
+bytes=2425  citations=4
+15:    ← demo-events.jsonl:8 · 2025-11-09 10:43  [agentB/started score=0.8717]
+17:    ← demo-events.jsonl:2 · 2025-11-08 09:43  [agentA/started score=0.7085]
+28:    ← demo-events.jsonl:9 · 2025-11-09 10:53  [agentB/finished]
+47:  - [待办·线索词:未实现] [结果] 已完成接手评估：…支付模块采用沙箱环境接入，冒烟测试 5 项通过  ← demo-events.jsonl:9
+```
+产物副本：`demo-data/validation/demo-brief-light.md`、`demo-brief-seekdb.md`。
+
+## V4 MCP 跨 AI 调用（真实 tools/call）
+
+```
+[srv] [handoff-bridge] ready (host=qoder-validate)
+INIT serverInfo= {"name":"handoff-bridge","version":"0.4.3"} proto= 2024-11-05
+TOOLS= get_handoff_brief(src,dst,topic,intent)
+[srv] [handoff-bridge] tools/call agentA->agentB topic="二手书 交易小程序 校园 支付"
+[srv] [handoff-bridge] ledger +1 (agentA->agentB, ok=true, 1163ms)
+CALL isError= false secs= 1.2 bytes= 2986
+citation_lines= 8   （← demo-events.jsonl:8 / :2 / :9 / :4 …）
+```
+台账：`v4-call-ledger.jsonl`（ok=true，worker 退出即注销，无残留进程）。
+
+## V5 PowerContext 记忆复用（真实 Server 1.2.0，非 mock）
+
+Server：`powercontext server run --host 127.0.0.1 --port 8000 --no-env-file`（recallloop-venv 自带 1.2.0；6s 就绪；按 PID 停止）。
+
+第 1 次生成：
+```
+[pc] PowerContext 已记录：entry=mem_ent_6cb2c0aac0b541e98ccd5b27feccbbb2 artifact=handoff
+[brief] written=.../v5-run1.md bytes=3247
+```
+第 2 次生成（同 topic）：
+```
+[pc] 历史交接记忆命中 4 条（写入简报头部）
+[pc] PowerContext 已记录：entry=mem_ent_a840eea008d345e5af8ac0ea4d8d9781 artifact=handoff
+第 9 行：- **历史交接记忆**：PowerContext 命中 4 条相关记录（跨次交接复用），最近一条：交接简报已生成：topic=二手书 交易小程序 校园 支付（agentA→agentB）…
+```
+产物副本：`demo-brief-powercontext-run1.md` / `demo-brief-powercontext-run2.md`。
+
+> 真实 Server 暴露并修复了两处契约 bug（mock 测不出）：
+> ① `create_handoff` 的 `state[*]` 应为 `{text, citations}` 且 citations ≥1（原来传 `summary` / 空列表）→ 422；
+> ② 同文本重复 `remember` 会被服务端去重并返回空 citation → 记忆文本加时间戳，使每次交接都是独立事件。
+
+## 回归评测（改动后重跑）
+
+```
+case          total     open     fact    noise     path   struct
+window        100.0      100%      100%      100%      100%      100%
+proc           90.6       83%       86%      100%      100%      100%
+bidu           93.3      100%      100%       67%      100%      100%
+平均总分: 94.6 / 100
+```

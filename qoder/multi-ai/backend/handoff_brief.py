@@ -292,16 +292,19 @@ def _pc_write(intent: str, topic: str, src, dst, md: str, out_path: str) -> Opti
             return None
         rec = pc.remember(
             f"交接简报已生成：topic={topic}（{src}→{dst}）；intent={intent}；"
-            f"产物={out_path}（{len(md.encode('utf-8'))} bytes）。未完成线头见简报④。",
+            f"产物={out_path}（{len(md.encode('utf-8'))} bytes）；"
+            f"at={_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}。未完成线头见简报④。",
             kind="working_note", reason="④交接简报落盘（PowerContext 记忆复用）")
+        cit = pc.memory_citation(rec.get("citation") or {})
+        cits = [cit] if cit else []  # 真服务端契约：state[*].citations 至少 1 条
         art = pc.create_handoff(
             objective=f"交接简报：{topic}",
-            state=[{"summary": f"intent={intent}；产物={out_path}", "citations": []}],
+            state=[{"text": f"intent={intent}；产物={out_path}", "citations": cits}],
             disposition="continuable",
-            next_action={"summary": "接手方按简报④未解决线头继续，终审对照 vault 维护日志"},
-            omissions=[{"summary": "简报为机械检索线索（无 LLM 综合），非终稿"}])
+            next_action={"text": "接手方按简报④未解决线头继续，终审对照 vault 维护日志", "citations": cits},
+            omissions=[{"text": "简报为机械检索线索（无 LLM 综合），非终稿", "citation": None}])
         return {"entry_id": (rec.get("citation") or {}).get("entry_id"),
-                "artifact_id": (art or {}).get("artifact_id")}
+                "artifact_id": (art.get("resp") or {}).get("artifact_id")}
     except Exception as e:
         print(f"[pc] PowerContext 记忆写入跳过（不致命）：{type(e).__name__}: {e}")
         return None
